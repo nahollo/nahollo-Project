@@ -1,0 +1,17 @@
+.wrap {
+  margin-bottom: 2rem;
+}
+
+.title {
+  font-size: 0.875rem;
+  font-weight: 300;
+  letter-spacing: 0.18em;
+  color: var(--color-muted);
+}
+
+@media (min-width: 640px) {
+  .wrap {
+    margin-bottom: 2.5rem;
+  }
+}
+

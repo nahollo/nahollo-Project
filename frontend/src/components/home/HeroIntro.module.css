@@ -1,0 +1,35 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.lead {
+  max-width: 48rem;
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  line-height: 1.95;
+  letter-spacing: -0.01em;
+  color: var(--color-text);
+}
+
+.body {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 42rem;
+  font-size: 0.875rem;
+  font-weight: 300;
+  line-height: 1.75;
+  color: var(--color-muted);
+}
+
+@media (min-width: 640px) {
+  .section {
+    gap: 2.5rem;
+  }
+
+  .lead {
+    font-size: 1.5rem;
+  }
+}
+

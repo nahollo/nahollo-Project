@@ -1,0 +1,24 @@
+.section {
+  margin-top: 6rem;
+}
+
+.intro {
+  max-width: 42rem;
+  margin-bottom: 2.5rem;
+  font-size: 0.875rem;
+  font-weight: 300;
+  line-height: 1.75;
+  color: var(--color-muted);
+}
+
+.list {
+  display: grid;
+  gap: 3.5rem;
+}
+
+@media (min-width: 768px) {
+  .section {
+    margin-top: 8rem;
+  }
+}
+

@@ -1,0 +1,11 @@
+.link {
+  display: inline-flex;
+  font-size: 0.875rem;
+  font-weight: 300;
+  color: var(--color-olive);
+  transition: color 0.2s ease;
+}
+
+.link:hover {
+  color: var(--color-brown);
+}

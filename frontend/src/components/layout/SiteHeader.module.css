@@ -1,0 +1,39 @@
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-bottom: 4rem;
+  font-size: 0.875rem;
+  font-weight: 300;
+  color: var(--color-muted);
+}
+
+.brand {
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  color: var(--color-text);
+}
+
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+}
+
+.link {
+  transition: color 0.2s ease;
+}
+
+.link:hover {
+  color: var(--color-olive);
+}
+
+@media (min-width: 640px) {
+  .header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6rem;
+  }
+}
+

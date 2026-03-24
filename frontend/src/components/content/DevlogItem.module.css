@@ -1,0 +1,39 @@
+.item {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.date {
+  padding-top: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 300;
+  letter-spacing: 0.16em;
+  color: var(--color-muted);
+}
+
+.body {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.title {
+  font-family: var(--font-serif);
+  font-size: 1.125rem;
+  line-height: 1.7;
+  color: var(--color-text);
+}
+
+.excerpt {
+  font-size: 0.9375rem;
+  font-weight: 300;
+  line-height: 1.75;
+  color: var(--color-muted);
+}
+
+@media (min-width: 640px) {
+  .item {
+    grid-template-columns: 136px minmax(0, 1fr);
+    gap: 2rem;
+  }
+}
+

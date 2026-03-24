@@ -1,0 +1,61 @@
+:root {
+  --color-bg: #f9f8f6;
+  --color-text: #2c2a29;
+  --color-muted: #737373;
+  --color-olive: #7a8b73;
+  --color-brown: #8b5a2b;
+  --color-paper: #fcfbf8;
+  --color-border: rgba(214, 208, 200, 0.85);
+  --color-tape: rgba(233, 223, 208, 0.8);
+  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", serif;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+}
+
+html {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-weight: 300;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+p,
+h1,
+h2,
+h3 {
+  margin: 0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+::selection {
+  background-color: rgba(122, 139, 115, 0.22);
+}
+

@@ -1,0 +1,21 @@
+.page {
+  min-height: 100vh;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+.main {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 2rem 2.5rem;
+}
+
+@media (min-width: 640px) {
+  .main {
+    padding: 2.5rem 3rem 3rem;
+  }
+}
+
