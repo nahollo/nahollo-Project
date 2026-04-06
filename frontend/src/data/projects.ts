@@ -1,7 +1,13 @@
-export type ProjectCategory = "Frontend" | "Fullstack" | "AI/Data";
+export type ProjectCategory = "Fullstack" | "AI/Data";
+
+export interface ProjectCertificate {
+  label: string;
+  url: string;
+}
 
 export interface ProjectItem {
   category: ProjectCategory;
+  certificates?: ProjectCertificate[];
   date: string;
   demoLabel?: string;
   demoLink?: string;
@@ -18,84 +24,74 @@ export interface ProjectItem {
 export const projects: ProjectItem[] = [
   {
     imageKey: "chatify",
-    title: "Chatify",
+    title: "GMOVIE",
     date: "2024",
     category: "Fullstack",
-    role: "실시간 채팅 경험 · Firebase 연동",
-    techStack: ["React", "Material UI", "Firebase"],
+    role: "WebRTC 기반 실시간 시청 경험과 서비스 흐름 구현",
+    techStack: ["React", "WebRTC", "Spring Boot", "PostgreSQL"],
     description:
-      "실시간 메시지, 이미지 공유, 반응형 레이아웃까지 이어지는 채팅 경험을 구현한 프로젝트입니다. 인터랙션 완성도와 Firebase 기반 데이터 흐름을 함께 다뤘습니다.",
-    ghLink: "https://github.com/nahollo/Chatify",
-    demoLink: "https://chatify-49.web.app/",
-    demoLabel: "Live Demo",
+      "실시간 커뮤니케이션과 몰입감 있는 시청 흐름을 연결하기 위해, 브라우저 상호작용부터 API와 데이터 구조까지 함께 설계한 영상 기반 서비스 프로젝트입니다.",
+    ghLink: "https://github.com/nahollo/GMOVIE",
+    certificates: [
+      { label: "ETRI", url: "/certificates/gmovie-etri-award.pdf" },
+      { label: "메이커톤", url: "/certificates/gmovie-makerthon-award.pdf" }
+    ],
     imageScale: 1.26,
     imagePosition: "center top"
   },
   {
     imageKey: "bitsOfCode",
-    title: "Bits of Code",
-    date: "2024",
-    category: "Frontend",
-    role: "콘텐츠 중심 기술 블로그",
-    techStack: ["Next.js", "Tailwind CSS", "Markdown"],
+    title: "소나기",
+    date: "2023",
+    category: "Fullstack",
+    role: "기부 흐름 UX 설계와 웹·앱 사용자 경험 구현",
+    techStack: ["React", "React Native", "Flask", "Selenium"],
     description:
-      "마크다운 기반 글 작성과 깔끔한 읽기 경험에 집중한 개인 기술 블로그입니다. 콘텐츠 구조와 읽기 밀도를 정리하는 데 초점을 맞췄습니다.",
-    ghLink: "https://github.com/nahollo/Bits-0f-C0de",
+      "예약 부도로 남는 음식을 기부로 연결하기 위해, 소상공인과 기부처를 잇는 흐름과 기부 인증, 최신 정보, 영수증 발급 경험을 설계한 웹·모바일 프로젝트입니다.",
+    ghLink: "https://github.com/aSIX-final-project/sonagi_web",
+    certificates: [{ label: "총장상", url: "/certificates/sonagi-president-award.pdf" }],
     imageScale: 1.2,
     imagePosition: "center top"
   },
   {
-    imageKey: "editor",
-    title: "Editor.io",
-    date: "2023",
-    category: "Frontend",
-    role: "경량 에디터 UX · 로컬 저장",
-    techStack: ["React", "Markdown", "LocalStorage"],
+    imageKey: "suicide",
+    title: "NoYakZone",
+    date: "2024",
+    category: "Fullstack",
+    role: "문제 해결형 서비스 기획과 사용자 흐름 구현",
+    techStack: ["React", "Spring Boot", "PostgreSQL", "AI"],
     description:
-      "즉시 미리보기와 로컬 자동 저장을 지원하는 코드 · 마크다운 에디터입니다. 빠른 작성 흐름과 가벼운 편집 경험을 목표로 만들었습니다.",
-    ghLink: "https://github.com/nahollo/Editor.io",
+      "불법 마약 게시글 탐지와 중독자 상담 연결 문제를 서비스 구조로 풀기 위해, 사용자 관점의 탐색 흐름과 백엔드 연동을 함께 설계한 문제 해결형 프로젝트입니다.",
+    ghLink: "https://github.com/NoYakZone/NoYakZone",
+    imageScale: 1.22,
+    imagePosition: "center 26%"
+  },
+  {
+    imageKey: "editor",
+    title: "다모아",
+    date: "2025",
+    category: "AI/Data",
+    role: "라이브커머스 통합 탐색, 검색, 추천 구조 설계",
+    techStack: ["React", "TypeScript", "Spring Boot", "Elasticsearch"],
+    description:
+      "여러 플랫폼의 라이브커머스 방송과 상품 정보를 수집, 분류, 검색, 추천까지 연결하기 위해 사용자 화면과 Spring API, 검색 인프라, 데이터 파이프라인을 함께 다룬 통합 플랫폼입니다.",
+    ghLink: "https://github.com/sm-comprehensive-project/comprehensive_project_react",
+    certificates: [{ label: "4차 산업혁명 페스티벌", url: "/certificates/damoa-industry-festival-award.pdf" }],
     imageScale: 1.28,
     imagePosition: "center top"
   },
   {
     imageKey: "leaf",
-    title: "Plant AI",
-    date: "2022",
-    category: "AI/Data",
-    role: "식물 질병 분류 실험",
-    techStack: ["PyTorch", "CNN", "Computer Vision"],
+    title: "청순가련",
+    date: "2024",
+    category: "Fullstack",
+    role: "청년 창업 지원 서비스 UX와 모바일 구현",
+    techStack: ["React Native", "Spring Boot", "PostgreSQL", "Chatbot"],
     description:
-      "CNN 기반으로 식물 이미지를 분류하고 건강 상태를 예측하는 프로젝트입니다. 모델 학습과 결과 해석을 함께 다루며 AI 실험 흐름을 익혔습니다.",
-    ghLink: "https://github.com/nahollo/Plant_AI",
-    demoLink: "https://plant49-ai.herokuapp.com/",
-    demoLabel: "Live Demo",
-    imageScale: 1.24,
+      "도시재생 지역의 유휴 공간과 청년 창업 수요를 연결하기 위해, 임대 공간 탐색, 상권 분석, 창업 지원 챗봇 경험을 모바일 서비스로 풀어낸 프로젝트입니다.",
+    ghLink: "https://github.com/Y-O-U-R-S/mobile_SW_project_2",
+    certificates: [{ label: "청년리빙랩 해커톤", url: "/certificates/cheongsungaryeon-livinglab-award.pdf" }],
+    imageScale: 1.22,
     imagePosition: "center 38%"
-  },
-  {
-    imageKey: "suicide",
-    title: "AI for Social Good",
-    date: "2022",
-    category: "AI/Data",
-    role: "텍스트 분류 · 사회문제 탐지",
-    techStack: ["NLP", "Classification", "Python"],
-    description:
-      "온라인 게시글에서 위험 신호를 조기에 감지하기 위해 자연어 처리 기반 분류 실험을 진행한 프로젝트입니다. 데이터 전처리부터 분류 흐름까지 연결했습니다.",
-    ghLink: "https://github.com/nahollo/AI_For_Social_Good",
-    imageScale: 1.22,
-    imagePosition: "center 26%"
-  },
-  {
-    imageKey: "emotion",
-    title: "얼굴 인식 및 감정 분석",
-    date: "2021",
-    category: "AI/Data",
-    role: "OpenCV · FER-2013 기반 분석",
-    techStack: ["OpenCV", "FER-2013", "Deep Learning"],
-    description:
-      "FER-2013 기반 감정 분류 모델과 얼굴 인식 흐름을 결합해 표정과 감정을 분석한 프로젝트입니다. 비전 모델 실험과 추론 파이프라인을 함께 다뤘습니다.",
-    ghLink: "https://github.com/nahollo/Face_And_Emotion_Detection",
-    imageScale: 1.22,
-    imagePosition: "center 34%"
   }
 ];

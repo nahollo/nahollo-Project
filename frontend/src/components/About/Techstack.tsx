@@ -1,28 +1,28 @@
 import React, { ReactNode } from "react";
 import { FaRust } from "react-icons/fa";
 import { SiNextdotjs, SiSolidity } from "react-icons/si";
-import AWS from "../../assets/TechIcons/AWS.svg";
-import C from "../../assets/TechIcons/C++.svg";
-import Docker from "../../assets/TechIcons/Docker.svg";
-import Firebase from "../../assets/TechIcons/Firebase.svg";
-import Git from "../../assets/TechIcons/Git.svg";
-import Go from "../../assets/TechIcons/go.svg";
-import HaskellIcon from "../../assets/TechIcons/Haskell.svg";
-import Java from "../../assets/TechIcons/Java.svg";
-import Javascript from "../../assets/TechIcons/Javascript.svg";
-import Kafka from "../../assets/TechIcons/Kafka.svg";
-import Kubernates from "../../assets/TechIcons/Kubernates.svg";
-import Mongo from "../../assets/TechIcons/Mongo.svg";
-import MUI from "../../assets/TechIcons/MUI.svg";
-import Node from "../../assets/TechIcons/Node.svg";
-import Postman from "../../assets/TechIcons/Postman.svg";
-import Python from "../../assets/TechIcons/Python.svg";
-import ReactIcon from "../../assets/TechIcons/React.svg";
-import Redis from "../../assets/TechIcons/Redis.svg";
-import Redux from "../../assets/TechIcons/Redux.svg";
-import SQL from "../../assets/TechIcons/SQL.svg";
-import Tailwind from "../../assets/TechIcons/Tailwind.svg";
-import Typescript from "../../assets/TechIcons/Typescript.svg";
+import AWS from "../../Assets/TechIcons/AWS.svg";
+import C from "../../Assets/TechIcons/C++.svg";
+import Docker from "../../Assets/TechIcons/Docker.svg";
+import Firebase from "../../Assets/TechIcons/Firebase.svg";
+import Git from "../../Assets/TechIcons/Git.svg";
+import Go from "../../Assets/TechIcons/go.svg";
+import HaskellIcon from "../../Assets/TechIcons/Haskell.svg";
+import Java from "../../Assets/TechIcons/Java.svg";
+import Javascript from "../../Assets/TechIcons/Javascript.svg";
+import Kafka from "../../Assets/TechIcons/Kafka.svg";
+import Kubernates from "../../Assets/TechIcons/Kubernates.svg";
+import Mongo from "../../Assets/TechIcons/Mongo.svg";
+import MUI from "../../Assets/TechIcons/MUI.svg";
+import Node from "../../Assets/TechIcons/Node.svg";
+import Postman from "../../Assets/TechIcons/Postman.svg";
+import Python from "../../Assets/TechIcons/Python.svg";
+import ReactIcon from "../../Assets/TechIcons/React.svg";
+import Redis from "../../Assets/TechIcons/Redis.svg";
+import Redux from "../../Assets/TechIcons/Redux.svg";
+import SQL from "../../Assets/TechIcons/SQL.svg";
+import Tailwind from "../../Assets/TechIcons/Tailwind.svg";
+import Typescript from "../../Assets/TechIcons/Typescript.svg";
 
 interface StackItem {
   icon: ReactNode;
@@ -44,7 +44,7 @@ const imageIcon = (src: string, alt: string, className = "stack-chip-icon"): JSX
 const stackGroups: StackGroup[] = [
   {
     label: "Primary",
-    title: "Frontend Systems",
+    title: "Product UI Systems",
     description: "가장 강하게 가져가는 화면 설계와 UI 시스템 중심 기술입니다.",
     items: [
       { label: "React", icon: imageIcon(ReactIcon, "React"), tone: "core" },

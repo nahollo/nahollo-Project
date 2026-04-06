@@ -21,7 +21,7 @@ function Footer(): JSX.Element {
         <Row className="footer-shell">
           <Col lg="4" md="12" className="footer-copywright footer-brand">
             <span className="footer-label">nahollo</span>
-            <h3>frontend / fullstack engineer</h3>
+            <h3>fullstack engineer</h3>
             <p>정제된 화면과 서비스 흐름을 한 제품의 맥락에서 설계합니다.</p>
           </Col>
           <Col lg="4" md="12" className="footer-copywright footer-meta">

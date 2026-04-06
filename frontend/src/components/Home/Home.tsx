@@ -103,7 +103,7 @@ function Home(): JSX.Element {
             <div className="connect-side-card">
               <span className="connect-side-label">Open For</span>
               <div className="connect-side-tags">
-                <span>Frontend UI</span>
+                <span>Fullstack Build</span>
                 <span>Fullstack Collaboration</span>
                 <span>Service Flow Thinking</span>
               </div>

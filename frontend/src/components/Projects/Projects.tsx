@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from "react";
 import { Col, Container, Row } from "react-bootstrap";
-import bitsOfCode from "../../assets/Projects/blog.png";
-import chatify from "../../assets/Projects/chatify.png";
-import editor from "../../assets/Projects/codeEditor.png";
-import emotion from "../../assets/Projects/emotion.png";
-import leaf from "../../assets/Projects/leaf.png";
-import suicide from "../../assets/Projects/suicide.png";
+import bitsOfCode from "../../Assets/Projects/blog.png";
+import chatify from "../../Assets/Projects/chatify.png";
+import editor from "../../Assets/Projects/codeEditor.png";
+import emotion from "../../Assets/Projects/emotion.png";
+import leaf from "../../Assets/Projects/leaf.png";
+import suicide from "../../Assets/Projects/suicide.png";
 import { ProjectCategory, projects } from "../../data/projects";
 import ProjectCard from "./ProjectCards";
 
@@ -18,7 +18,7 @@ const projectImages = {
   suicide
 };
 
-const filters: Array<"All" | ProjectCategory> = ["All", "Frontend", "Fullstack", "AI/Data"];
+const filters: Array<"All" | ProjectCategory> = ["All", "Fullstack", "AI/Data"];
 
 function Projects(): JSX.Element {
   const [activeFilter, setActiveFilter] = useState<(typeof filters)[number]>("All");
@@ -98,6 +98,7 @@ function Projects(): JSX.Element {
               <Col xl={4} md={6} className="project-card" key={project.title}>
                 <ProjectCard
                   category={project.category}
+                  certificates={project.certificates}
                   date={project.date}
                   demoLabel={project.demoLabel}
                   demoLink={project.demoLink}

@@ -74,7 +74,7 @@ button:focus {
   height: 100%;
   z-index: 999999;
   background-color: var(--bg-color);
-  background-image: url(./assets/pre.svg);
+  background-image: url(./Assets/pre.svg);
   background-repeat: no-repeat;
   background-position: center;
 }
@@ -359,6 +359,203 @@ button:focus {
     inset 8px 8px 14px rgba(8, 10, 15, 0.6),
     inset -5px -5px 11px rgba(87, 99, 122, 0.06),
     0 14px 22px -16px rgba(4, 7, 13, 0.74);
+}
+
+.project-card-awards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin-top: 1rem;
+}
+
+.project-card-awards-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text-secondary) 78%, var(--text-primary));
+}
+
+.project-card-awards-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.project-award-button {
+  border: 1px solid color-mix(in srgb, var(--border-color) 78%, transparent);
+  background: color-mix(in srgb, var(--bg-surface) 92%, var(--bg-primary));
+  color: var(--heading-color);
+  border-radius: 999px;
+  padding: 0.45rem 0.8rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.project-award-button:hover {
+  border-color: color-mix(in srgb, var(--accent-color) 30%, var(--border-color));
+  background: color-mix(in srgb, var(--accent-color) 10%, var(--bg-surface));
+  transform: translateY(-1px);
+}
+
+.project-award-button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent-color) 55%, white);
+  outline-offset: 2px;
+}
+
+.certificate-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.certificate-modal {
+  width: min(980px, 100%);
+  height: min(88vh, 980px);
+  background: color-mix(in srgb, var(--bg-surface) 96%, var(--bg-primary));
+  border: 1px solid color-mix(in srgb, var(--border-color) 84%, transparent);
+  border-radius: 24px;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.certificate-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.1rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-color) 82%, transparent);
+  background: color-mix(in srgb, var(--bg-surface) 88%, var(--bg-primary));
+}
+
+.certificate-modal-head strong {
+  display: block;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--heading-color);
+}
+
+.certificate-modal-label {
+  display: inline-block;
+  margin-bottom: 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text-secondary) 78%, var(--text-primary));
+}
+
+.certificate-modal-close {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 82%, transparent);
+  background: color-mix(in srgb, var(--bg-primary) 88%, var(--bg-surface));
+  color: var(--heading-color);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.certificate-modal-close:hover {
+  background: color-mix(in srgb, var(--accent-color) 10%, var(--bg-surface));
+  border-color: color-mix(in srgb, var(--accent-color) 30%, var(--border-color));
+}
+
+.certificate-modal-frame-wrap {
+  flex: 1;
+  min-height: 0;
+  background: color-mix(in srgb, var(--bg-primary) 84%, black);
+}
+
+.certificate-modal-frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: white;
+}
+
+.resume-awards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.resume-award-item {
+  width: 100%;
+  text-align: left;
+  padding: 1rem 1.05rem;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 82%, transparent);
+  background: color-mix(in srgb, var(--bg-surface) 90%, var(--bg-primary));
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.resume-award-item:hover {
+  border-color: color-mix(in srgb, var(--accent-color) 28%, var(--border-color));
+  background: color-mix(in srgb, var(--accent-color) 8%, var(--bg-surface));
+  transform: translateY(-1px);
+}
+
+.resume-award-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.55rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text-secondary) 80%, var(--text-primary));
+}
+
+.resume-award-item h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.resume-award-item p {
+  margin: 0.55rem 0 0;
+  color: var(--text-color);
+  line-height: 1.65;
+}
+
+@media (max-width: 767px) {
+  .certificate-modal-backdrop {
+    padding: 0.75rem;
+  }
+
+  .certificate-modal {
+    height: min(84vh, 720px);
+    border-radius: 18px;
+  }
+
+  .certificate-modal-head {
+    padding: 0.85rem 0.9rem;
+  }
+
+  .project-card-awards-list {
+    gap: 0.45rem;
+  }
 }
 
 .theme-toggle:focus-visible .theme-toggle-track {

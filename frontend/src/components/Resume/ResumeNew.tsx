@@ -3,6 +3,8 @@ import { Col, Container, Row } from "react-bootstrap";
 import { AiOutlineArrowRight } from "react-icons/ai";
 import { BsGithub } from "react-icons/bs";
 import { Link } from "react-router-dom";
+import CertificateModal from "../CertificateModal";
+import { standaloneAwards } from "../../data/awards";
 import { profile } from "../../data/profile";
 import { projects } from "../../data/projects";
 import {
@@ -17,16 +19,19 @@ import {
 const selectedProjects = projects.slice(0, 3);
 
 function ResumeNew(): JSX.Element {
+  const [activeAward, setActiveAward] = React.useState<(typeof standaloneAwards)[number] | null>(null);
+
   return (
-    <Container fluid className="resume-section">
-      <Container className="resume-shell">
+    <>
+      <Container fluid className="resume-section">
+        <Container className="resume-shell">
         <section className="resume-intro page-intro">
           <div className="resume-intro-copy page-intro-head">
             <span className="section-eyebrow">Resume</span>
-            <h1 className="resume-title page-title">정제된 UI와 서비스 흐름을 함께 설계하는 프론트엔드 · 풀스택 엔지니어입니다.</h1>
+            <h1 className="resume-title page-title">정제된 UI와 서비스 흐름을 함께 설계하는 풀스택 엔지니어입니다.</h1>
             <p className="resume-intro-description page-intro-description">
-              이력서는 문서보다 빠르게 스캔되고 비교되어야 한다고 생각합니다. 그래서 현재 집중하는 역량, 작업 방식,
-              대표 프로젝트, 확장 중인 기술 흐름을 웹 네이티브 형태로 다시 정리했습니다.
+              이력서는 문서보다 빠르게 스캔되고 비교되어야 한다고 생각합니다. 그래서 현재 집중하는 역량, 작업 방식, 대표 프로젝트,
+              그리고 확장 중인 기술 흐름을 웹 네이티브 형태로 다시 정리했습니다.
             </p>
           </div>
 
@@ -140,10 +145,36 @@ function ResumeNew(): JSX.Element {
                 ))}
               </ul>
             </article>
+
+            <article className="resume-panel surface-card">
+              <span className="resume-panel-label">Awards & Certificates</span>
+              <div className="resume-awards-list">
+                {standaloneAwards.map((award) => (
+                  <button
+                    key={award.url}
+                    type="button"
+                    className="resume-award-item"
+                    onClick={() => setActiveAward(award)}
+                  >
+                    <div className="resume-award-meta">
+                      <span>{award.label}</span>
+                      <strong>{award.year}</strong>
+                    </div>
+                    <h3>{award.title}</h3>
+                    <p>{award.description}</p>
+                  </button>
+                ))}
+              </div>
+            </article>
           </Col>
         </Row>
+        </Container>
       </Container>
-    </Container>
+
+      {activeAward && (
+        <CertificateModal label={activeAward.title} url={activeAward.url} onClose={() => setActiveAward(null)} />
+      )}
+    </>
   );
 }
 
