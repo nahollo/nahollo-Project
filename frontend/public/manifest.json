@@ -1,0 +1,15 @@
+{
+  "short_name": "nahollo",
+  "name": "nahollo portfolio",
+  "icons": [
+    {
+      "src": "favicon.png",
+      "sizes": "512x512 192x192 64x64",
+      "type": "image/png"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#101828",
+  "background_color": "#eef2ff"
+}
