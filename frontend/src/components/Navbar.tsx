@@ -97,26 +97,30 @@ function NavBar(): JSX.Element {
   return (
     <Navbar expanded={expand} fixed="top" expand="lg" className={`site-header ${navColour ? "sticky" : ""}`}>
       <Container className="navbar-shell">
-        <Navbar.Brand as={NavLink} to="/" className="brand-link" onClick={() => setExpand(false)}>
-          <span className={`brand-surface ${isDarkMode ? "is-dark" : "is-light"}`}>
-            {!logoError ? (
-              <>
-                <span className="brand-logo-shell">
-                  <img
-                    src={currentLogo}
-                    alt={`${profile.name} logo`}
-                    className="brand-logo"
-                    width={32}
-                    height={32}
-                    onError={() => setLogoError(true)}
-                  />
-                </span>
-                <span className="brand-wordmark">{profile.name}</span>
-              </>
-            ) : (
-              <span className="brand-fallback">{profile.name}</span>
-            )}
-          </span>
+        <Navbar.Brand
+          as={NavLink}
+          to="/"
+          className="brand-link"
+          aria-label={`${profile.name} 홈으로 이동`}
+          onClick={() => setExpand(false)}
+        >
+          {!logoError ? (
+            <span className={`brand-surface ${isDarkMode ? "is-dark" : "is-light"}`} aria-hidden="true">
+              <span className="brand-mark">
+                <img
+                  src={currentLogo}
+                  alt=""
+                  className="brand-logo"
+                  width={54}
+                  height={54}
+                  onError={() => setLogoError(true)}
+                />
+              </span>
+              <span className="brand-wordmark">{profile.name}</span>
+            </span>
+          ) : (
+            <span className="brand-fallback">{profile.name}</span>
+          )}
         </Navbar.Brand>
 
         <Navbar.Toggle
