@@ -4,8 +4,8 @@ import { AiOutlineFundProjectionScreen, AiOutlineHome, AiOutlineUser } from "rea
 import { BsGithub } from "react-icons/bs";
 import { CgFileDocument } from "react-icons/cg";
 import { NavLink } from "react-router-dom";
-import logoDark from "../Assets/logos/logo-dark.png";
-import logoLight from "../Assets/logos/logo-light.png";
+import logoDark from "../assets/logos/logo-dark.png";
+import logoLight from "../assets/logos/logo-light.png";
 import { profile } from "../data/profile";
 
 const THEME_STORAGE_KEY = "nahollo-theme";

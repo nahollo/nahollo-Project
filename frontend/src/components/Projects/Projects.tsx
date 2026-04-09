@@ -1,19 +1,18 @@
 import React, { useMemo, useState } from "react";
 import { Col, Container, Row } from "react-bootstrap";
-import bitsOfCode from "../../Assets/Projects/blog.png";
-import chatify from "../../Assets/Projects/chatify.png";
-import editor from "../../Assets/Projects/codeEditor.png";
-import emotion from "../../Assets/Projects/emotion.png";
-import leaf from "../../Assets/Projects/leaf.png";
-import suicide from "../../Assets/Projects/suicide.png";
+import bitsOfCode from "../../assets/Projects/blog.png";
+import chatify from "../../assets/Projects/chatify.png";
+import editor from "../../assets/Projects/codeEditor.png";
+import leaf from "../../assets/Projects/leaf.png";
+import suicide from "../../assets/Projects/suicide.png";
 import { ProjectCategory, projects } from "../../data/projects";
+import usePreloadedImages from "../../hooks/usePreloadedImages";
 import ProjectCard from "./ProjectCards";
 
 const projectImages = {
   bitsOfCode,
   chatify,
   editor,
-  emotion,
   leaf,
   suicide
 };
@@ -22,6 +21,14 @@ const filters: Array<"All" | ProjectCategory> = ["All", "Fullstack", "AI/Data"];
 
 function Projects(): JSX.Element {
   const [activeFilter, setActiveFilter] = useState<(typeof filters)[number]>("All");
+
+  const certificatePreviewUrls = useMemo(
+    () =>
+      projects.flatMap((project) => project.certificates?.map((certificate) => certificate.previewUrl) ?? []),
+    []
+  );
+
+  usePreloadedImages(certificatePreviewUrls);
 
   const filterCounts = useMemo(
     () =>
@@ -53,7 +60,7 @@ function Projects(): JSX.Element {
                 제품처럼 정리한 프로젝트 <strong className="purple">쇼케이스</strong>
               </h1>
               <p className="project-description page-intro-description">
-                결과물의 성격과 역할이 빠르게 읽히도록, 대표 프로젝트를 하나의 탐색 체계 안에서 다시 정리했습니다.
+                대표 프로젝트만 빠르게 읽히도록 정리했습니다.
               </p>
             </div>
 
@@ -83,15 +90,9 @@ function Projects(): JSX.Element {
                     </button>
                   ))}
                 </div>
-                <p className="project-filter-note">필터를 바꾸면 분야별 결과물과 역할 차이를 빠르게 비교할 수 있습니다.</p>
               </div>
             </div>
           </section>
-
-          <div className="project-grid-head">
-            <span className="project-grid-label">Selected Builds</span>
-            <p>Role · Stack · Outcome · Action</p>
-          </div>
 
           <Row className="project-grid">
             {filteredProjects.map((project) => (

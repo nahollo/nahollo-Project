@@ -2,8 +2,18 @@ import React, { useState } from "react";
 import Card from "react-bootstrap/Card";
 import { BsGithub } from "react-icons/bs";
 import { CgWebsite } from "react-icons/cg";
+import CertificateHoverPreview, { getCertificateHoverPreviewPosition } from "../CertificateHoverPreview";
 import CertificateModal from "../CertificateModal";
 import { ProjectCategory, ProjectCertificate } from "../../data/projects";
+
+interface HoveredCertificateState {
+  label: string;
+  left: number;
+  placement: "top" | "bottom";
+  previewUrl: string;
+  top: number;
+  width: number;
+}
 
 interface ProjectCardsProps {
   category: ProjectCategory;
@@ -37,7 +47,23 @@ function ProjectCards({
   title
 }: ProjectCardsProps): JSX.Element {
   const [activeCertificate, setActiveCertificate] = useState<ProjectCertificate | null>(null);
+  const [hoveredCertificate, setHoveredCertificate] = useState<HoveredCertificateState | null>(null);
+
   const projectLabel = `${title} ${date} ${category}`;
+
+  const handleCertificateHover = (certificate: ProjectCertificate, element: HTMLButtonElement) => {
+    if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+      return;
+    }
+
+    const position = getCertificateHoverPreviewPosition(element.getBoundingClientRect());
+
+    setHoveredCertificate({
+      label: certificate.label,
+      previewUrl: certificate.previewUrl,
+      ...position
+    });
+  };
 
   return (
     <>
@@ -89,7 +115,14 @@ function ProjectCards({
                       key={certificate.url}
                       type="button"
                       className="project-award-button"
-                      onClick={() => setActiveCertificate(certificate)}
+                      onClick={() => {
+                        setHoveredCertificate(null);
+                        setActiveCertificate(certificate);
+                      }}
+                      onMouseEnter={(event) => handleCertificateHover(certificate, event.currentTarget)}
+                      onMouseLeave={() => setHoveredCertificate(null)}
+                      onFocus={(event) => handleCertificateHover(certificate, event.currentTarget)}
+                      onBlur={() => setHoveredCertificate(null)}
                     >
                       {certificate.label}
                     </button>
@@ -120,9 +153,21 @@ function ProjectCards({
         </Card.Body>
       </Card>
 
+      {hoveredCertificate && (
+        <CertificateHoverPreview
+          label={hoveredCertificate.label}
+          previewUrl={hoveredCertificate.previewUrl}
+          top={hoveredCertificate.top}
+          left={hoveredCertificate.left}
+          width={hoveredCertificate.width}
+          placement={hoveredCertificate.placement}
+        />
+      )}
+
       {activeCertificate && (
         <CertificateModal
           label={activeCertificate.label}
+          previewUrl={activeCertificate.previewUrl}
           url={activeCertificate.url}
           onClose={() => setActiveCertificate(null)}
         />

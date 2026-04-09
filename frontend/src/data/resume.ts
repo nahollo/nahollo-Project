@@ -19,62 +19,62 @@ export const resumeHighlights: ResumeHighlight[] = [
   {
     label: "Product UI",
     title: "React · TypeScript",
-    description: "정제된 UI와 읽기 좋은 화면 흐름을 제품 기준으로 설계하는 데 강점을 두고 있습니다."
+    description: "정제된 UI와 읽기 흐름을 제품 기준으로 설계합니다."
   },
   {
     label: "Service Flow",
-    title: "API · Database · Deploy",
-    description: "브라우저에서 서버와 데이터까지 이어지는 서비스 구조를 하나의 제품 흐름 안에서 함께 이해합니다."
+    title: "Spring Boot · PostgreSQL",
+    description: "브라우저에서 API, 데이터, 배포까지 한 구조로 연결합니다."
   },
   {
-    label: "Hands-on Learning",
-    title: "Spring Boot · Home Server",
-    description: "서버 실습과 백엔드 연결 경험을 통해 구현 범위와 운영 감각을 계속 확장하고 있습니다."
+    label: "Delivered Work",
+    title: "React Native · SMS Automation",
+    description: "단독 개발과 납품 경험으로 사용 흐름과 운영 효율을 개선합니다."
   }
 ];
 
 export const resumeSummary: string[] = [
-  "화면 완성도에서 출발했지만, 지금은 사용자 경험과 서비스 흐름을 함께 보는 풀스택 엔지니어로 성장하고 있습니다.",
-  "React와 TypeScript로 제품처럼 정리된 UI를 만들고, Spring Boot와 PostgreSQL로 이어지는 API와 데이터 구조를 실제 서비스 흐름으로 연결하는 데 집중하고 있습니다."
+  "화면 완성도에서 출발했지만 지금은 UI와 서비스 구조를 함께 설계하는 풀스택 엔지니어로 일하고 있습니다.",
+  "WebRTC, Spring Boot, AWS, Python 기반 수집·추천 흐름과 React Native 납품 경험을 바탕으로 실제로 동작하는 제품을 만드는 데 강점을 두고 있습니다."
 ];
 
-export const resumeSignatureTags: string[] = ["UI Polish", "Service Structure", "Home Server Practice"];
+export const resumeSignatureTags: string[] = ["UI Polish", "Service Structure", "Delivery Experience"];
 
 export const resumePrinciples: ResumePrinciple[] = [
   {
     title: "Structure First",
-    description: "기능을 붙이기 전에 화면, 상태, API, 데이터 연결 구조를 먼저 정리합니다."
+    description: "기능보다 먼저 화면, 상태, API, 데이터 흐름을 연결합니다."
   },
   {
-    title: "Polish with Purpose",
-    description: "spacing, typography, contrast 같은 작은 차이로 완성도를 끌어올립니다."
+    title: "Across the Stack",
+    description: "브라우저에서 시작한 흐름이 서버, 데이터베이스, 배포까지 끊기지 않게 봅니다."
   },
   {
-    title: "Build and Verify",
-    description: "학습한 내용은 직접 구현하고, 빌드와 실행까지 확인하면서 다시 다듬습니다."
+    title: "Ship and Refine",
+    description: "시연, 납품, 운영 피드백까지 확인한 뒤 다시 다듬습니다."
   }
 ];
 
 export const resumeFocusGroups: ResumeFocusGroup[] = [
   {
-    label: "Core Stack",
-    title: "제품 화면을 설계하고 구현하는 중심 기술",
-    items: ["React", "TypeScript", "JavaScript", "Next.js", "Tailwind CSS", "Material UI"]
+    label: "Frontend",
+    title: "제품 화면과 모바일 경험을 구현하는 축",
+    items: ["React", "TypeScript", "React Native", "JavaScript", "CSS3"]
   },
   {
-    label: "Backend / Data",
-    title: "서비스 흐름을 연결하는 확장 영역",
-    items: ["Spring Boot", "PostgreSQL", "Firebase", "Node.js", "MongoDB", "Redis"]
+    label: "Service Flow",
+    title: "API, 데이터, 배포를 연결하는 축",
+    items: ["Spring Boot", "Node.js", "PostgreSQL", "AWS EC2/S3", "Flask"]
   },
   {
-    label: "Infra / Workflow",
-    title: "운영과 검증을 위한 작업 환경",
-    items: ["Ubuntu Server", "Docker", "AWS", "Git", "Postman", "VS Code", "IntelliJ"]
+    label: "Data / Automation",
+    title: "수집, 분류, 추천을 확장하는 축",
+    items: ["Python", "Playwright", "Puppeteer", "FastAPI", "KoSimCSE", "ETRI OpenAPI"]
   }
 ];
 
 export const resumeCurrentFocus: string[] = [
-  "Spring Boot 기반 API 설계와 PostgreSQL 연결 감각 확장",
-  "홈서버 위에서 Web · API · DB 구조를 운영하며 서비스 흐름 학습",
-  "제품형 UI 품질과 컴포넌트 완성도를 더 높은 기준으로 끌어올리기"
+  "Spring Boot·PostgreSQL 중심의 서비스 구조를 더 단단하게 다지고 있습니다.",
+  "Python과 Playwright/Puppeteer로 수집·정규화·추천 흐름을 확장하고 있습니다.",
+  "React Native 경험을 더 정제된 모바일 UX 기준으로 다듬고 있습니다."
 ];

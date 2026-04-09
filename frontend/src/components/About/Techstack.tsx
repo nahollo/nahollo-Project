@@ -1,28 +1,12 @@
 import React, { ReactNode } from "react";
-import { FaRust } from "react-icons/fa";
-import { SiNextdotjs, SiSolidity } from "react-icons/si";
-import AWS from "../../Assets/TechIcons/AWS.svg";
-import C from "../../Assets/TechIcons/C++.svg";
-import Docker from "../../Assets/TechIcons/Docker.svg";
-import Firebase from "../../Assets/TechIcons/Firebase.svg";
-import Git from "../../Assets/TechIcons/Git.svg";
-import Go from "../../Assets/TechIcons/go.svg";
-import HaskellIcon from "../../Assets/TechIcons/Haskell.svg";
-import Java from "../../Assets/TechIcons/Java.svg";
-import Javascript from "../../Assets/TechIcons/Javascript.svg";
-import Kafka from "../../Assets/TechIcons/Kafka.svg";
-import Kubernates from "../../Assets/TechIcons/Kubernates.svg";
-import Mongo from "../../Assets/TechIcons/Mongo.svg";
-import MUI from "../../Assets/TechIcons/MUI.svg";
-import Node from "../../Assets/TechIcons/Node.svg";
-import Postman from "../../Assets/TechIcons/Postman.svg";
-import Python from "../../Assets/TechIcons/Python.svg";
-import ReactIcon from "../../Assets/TechIcons/React.svg";
-import Redis from "../../Assets/TechIcons/Redis.svg";
-import Redux from "../../Assets/TechIcons/Redux.svg";
-import SQL from "../../Assets/TechIcons/SQL.svg";
-import Tailwind from "../../Assets/TechIcons/Tailwind.svg";
-import Typescript from "../../Assets/TechIcons/Typescript.svg";
+import AWS from "../../assets/TechIcons/AWS.svg";
+import Javascript from "../../assets/TechIcons/Javascript.svg";
+import Mongo from "../../assets/TechIcons/Mongo.svg";
+import Node from "../../assets/TechIcons/Node.svg";
+import Python from "../../assets/TechIcons/Python.svg";
+import ReactIcon from "../../assets/TechIcons/React.svg";
+import SQL from "../../assets/TechIcons/SQL.svg";
+import Typescript from "../../assets/TechIcons/Typescript.svg";
 
 interface StackItem {
   icon: ReactNode;
@@ -41,58 +25,48 @@ const imageIcon = (src: string, alt: string, className = "stack-chip-icon"): JSX
   <img src={src} alt={alt} className={className} />
 );
 
+const glyphIcon = (text: string): JSX.Element => (
+  <span className="stack-chip-glyph" aria-hidden="true">
+    {text}
+  </span>
+);
+
 const stackGroups: StackGroup[] = [
   {
-    label: "Primary",
-    title: "Product UI Systems",
-    description: "가장 강하게 가져가는 화면 설계와 UI 시스템 중심 기술입니다.",
+    label: "Frontend",
+    title: "React · TypeScript · React Native",
+    description: "제품 화면과 모바일 경험을 구현할 때 가장 자주 쓰는 프론트엔드 축입니다.",
     items: [
       { label: "React", icon: imageIcon(ReactIcon, "React"), tone: "core" },
       { label: "TypeScript", icon: imageIcon(Typescript, "TypeScript"), tone: "core" },
       { label: "JavaScript", icon: imageIcon(Javascript, "JavaScript") },
-      { label: "Next.js", icon: <SiNextdotjs /> },
-      { label: "Tailwind CSS", icon: imageIcon(Tailwind, "Tailwind CSS") },
-      { label: "Material UI", icon: imageIcon(MUI, "Material UI") },
-      { label: "Redux", icon: imageIcon(Redux, "Redux") }
+      { label: "React Native", icon: glyphIcon("RN"), tone: "core" },
+      { label: "CSS3", icon: glyphIcon("CSS") }
     ]
   },
   {
     label: "Service Flow",
-    title: "API · Data Structure",
-    description: "브라우저 밖까지 이어지는 요청, 데이터, 서비스 구조를 확장하는 영역입니다.",
+    title: "Spring Boot · PostgreSQL · AWS",
+    description: "브라우저에서 시작한 흐름을 API, 데이터베이스, 배포까지 잇는 서비스 축입니다.",
     items: [
-      { label: "Java", icon: imageIcon(Java, "Java"), tone: "core" },
+      { label: "Spring Boot", icon: glyphIcon("SB"), tone: "core" },
       { label: "Node.js", icon: imageIcon(Node, "Node.js") },
       { label: "PostgreSQL", icon: imageIcon(SQL, "PostgreSQL"), tone: "core" },
-      { label: "Firebase", icon: imageIcon(Firebase, "Firebase") },
+      { label: "AWS EC2/S3", icon: imageIcon(AWS, "AWS"), tone: "core" },
+      { label: "Flask", icon: glyphIcon("FL") }
+    ]
+  },
+  {
+    label: "Data / Automation",
+    title: "Collection · Classification · Recommendation",
+    description: "수집, 분류, 추천 파이프라인을 직접 다뤄오며 확장한 데이터 자동화 경험입니다.",
+    items: [
+      { label: "Python", icon: imageIcon(Python, "Python"), tone: "core" },
+      { label: "Playwright", icon: glyphIcon("PW") },
+      { label: "Puppeteer", icon: glyphIcon("PP") },
       { label: "MongoDB", icon: imageIcon(Mongo, "MongoDB") },
-      { label: "Redis", icon: imageIcon(Redis, "Redis") }
-    ]
-  },
-  {
-    label: "Delivery",
-    title: "Operations & Shipping",
-    description: "개발 결과물을 운영 가능한 형태로 연결하기 위해 함께 보는 도구와 플랫폼입니다.",
-    items: [
-      { label: "Docker", icon: imageIcon(Docker, "Docker"), tone: "core" },
-      { label: "AWS", icon: imageIcon(AWS, "AWS"), tone: "core" },
-      { label: "Git", icon: imageIcon(Git, "Git") },
-      { label: "Postman", icon: imageIcon(Postman, "Postman") },
-      { label: "Kubernetes", icon: imageIcon(Kubernates, "Kubernetes") },
-      { label: "Kafka", icon: imageIcon(Kafka, "Kafka") }
-    ]
-  },
-  {
-    label: "Exploration",
-    title: "Exploration",
-    description: "직접 실험하고 배우며 기술 감각을 넓히는 데 사용한 언어와 분야입니다.",
-    items: [
-      { label: "Python", icon: imageIcon(Python, "Python") },
-      { label: "Go", icon: imageIcon(Go, "Go") },
-      { label: "Rust", icon: <FaRust /> },
-      { label: "C++", icon: imageIcon(C, "C++") },
-      { label: "Solidity", icon: <SiSolidity /> },
-      { label: "Haskell", icon: imageIcon(HaskellIcon, "Haskell") }
+      { label: "KoSimCSE", icon: glyphIcon("KS") },
+      { label: "ETRI OpenAPI", icon: glyphIcon("ET") }
     ]
   }
 ];

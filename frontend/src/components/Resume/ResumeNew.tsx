@@ -3,10 +3,12 @@ import { Col, Container, Row } from "react-bootstrap";
 import { AiOutlineArrowRight } from "react-icons/ai";
 import { BsGithub } from "react-icons/bs";
 import { Link } from "react-router-dom";
+import CertificateHoverPreview, { getCertificateHoverPreviewPosition } from "../CertificateHoverPreview";
 import CertificateModal from "../CertificateModal";
 import { standaloneAwards } from "../../data/awards";
 import { profile } from "../../data/profile";
 import { projects } from "../../data/projects";
+import usePreloadedImages from "../../hooks/usePreloadedImages";
 import {
   resumeCurrentFocus,
   resumeFocusGroups,
@@ -18,8 +20,36 @@ import {
 
 const selectedProjects = projects.slice(0, 3);
 
+interface HoveredAwardState {
+  label: string;
+  left: number;
+  placement: "top" | "bottom";
+  previewUrl: string;
+  top: number;
+  width: number;
+}
+
 function ResumeNew(): JSX.Element {
   const [activeAward, setActiveAward] = React.useState<(typeof standaloneAwards)[number] | null>(null);
+  const [hoveredAward, setHoveredAward] = React.useState<HoveredAwardState | null>(null);
+
+  const awardPreviewUrls = React.useMemo(() => standaloneAwards.map((award) => award.previewUrl), []);
+
+  usePreloadedImages(awardPreviewUrls);
+
+  const handleAwardHover = React.useCallback((previewUrl: string, label: string, element: HTMLButtonElement) => {
+    if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+      return;
+    }
+
+    const position = getCertificateHoverPreviewPosition(element.getBoundingClientRect());
+
+    setHoveredAward({
+      label,
+      previewUrl,
+      ...position
+    });
+  }, []);
 
   return (
     <>
@@ -30,8 +60,7 @@ function ResumeNew(): JSX.Element {
             <span className="section-eyebrow">Resume</span>
             <h1 className="resume-title page-title">정제된 UI와 서비스 흐름을 함께 설계하는 풀스택 엔지니어입니다.</h1>
             <p className="resume-intro-description page-intro-description">
-              이력서는 문서보다 빠르게 스캔되고 비교되어야 한다고 생각합니다. 그래서 현재 집중하는 역량, 작업 방식, 대표 프로젝트,
-              그리고 확장 중인 기술 흐름을 웹 네이티브 형태로 다시 정리했습니다.
+              현재 집중하는 역량, 작업 방식, 대표 프로젝트를 빠르게 스캔할 수 있도록 다시 정리했습니다.
             </p>
           </div>
 
@@ -154,7 +183,14 @@ function ResumeNew(): JSX.Element {
                     key={award.url}
                     type="button"
                     className="resume-award-item"
-                    onClick={() => setActiveAward(award)}
+                    onClick={() => {
+                      setHoveredAward(null);
+                      setActiveAward(award);
+                    }}
+                    onMouseEnter={(event) => handleAwardHover(award.previewUrl, award.title, event.currentTarget)}
+                    onMouseLeave={() => setHoveredAward(null)}
+                    onFocus={(event) => handleAwardHover(award.previewUrl, award.title, event.currentTarget)}
+                    onBlur={() => setHoveredAward(null)}
                   >
                     <div className="resume-award-meta">
                       <span>{award.label}</span>
@@ -171,8 +207,24 @@ function ResumeNew(): JSX.Element {
         </Container>
       </Container>
 
+      {hoveredAward && (
+        <CertificateHoverPreview
+          label={hoveredAward.label}
+          previewUrl={hoveredAward.previewUrl}
+          top={hoveredAward.top}
+          left={hoveredAward.left}
+          width={hoveredAward.width}
+          placement={hoveredAward.placement}
+        />
+      )}
+
       {activeAward && (
-        <CertificateModal label={activeAward.title} url={activeAward.url} onClose={() => setActiveAward(null)} />
+        <CertificateModal
+          label={activeAward.title}
+          previewUrl={activeAward.previewUrl}
+          url={activeAward.url}
+          onClose={() => setActiveAward(null)}
+        />
       )}
     </>
   );

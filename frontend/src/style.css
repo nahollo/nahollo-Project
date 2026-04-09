@@ -74,7 +74,7 @@ button:focus {
   height: 100%;
   z-index: 999999;
   background-color: var(--bg-color);
-  background-image: url(./Assets/pre.svg);
+  background-image: url(./assets/pre.svg);
   background-repeat: no-repeat;
   background-position: center;
 }
@@ -383,6 +383,10 @@ button:focus {
 }
 
 .project-award-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid color-mix(in srgb, var(--border-color) 78%, transparent);
   background: color-mix(in srgb, var(--bg-surface) 92%, var(--bg-primary));
   color: var(--heading-color);
@@ -394,13 +398,27 @@ button:focus {
   transition:
     border-color 0.2s ease,
     background-color 0.2s ease,
+    box-shadow 0.2s ease,
+    color 0.2s ease,
     transform 0.2s ease;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 50%, transparent),
+    0 10px 18px -16px color-mix(in srgb, var(--shadow-color) 80%, transparent);
 }
 
 .project-award-button:hover {
-  border-color: color-mix(in srgb, var(--accent-color) 30%, var(--border-color));
-  background: color-mix(in srgb, var(--accent-color) 10%, var(--bg-surface));
+  border-color: color-mix(in srgb, var(--accent-color) 38%, var(--border-color));
+  background: color-mix(in srgb, var(--accent-color) 14%, var(--bg-surface));
+  color: color-mix(in srgb, var(--accent-color) 72%, var(--heading-color));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 58%, transparent),
+    0 14px 26px -18px color-mix(in srgb, var(--accent-color) 26%, var(--shadow-color));
   transform: translateY(-1px);
+}
+
+.project-award-button:active {
+  transform: translateY(0);
 }
 
 .project-award-button:focus-visible {
@@ -420,6 +438,62 @@ button:focus {
   padding: 1.5rem;
 }
 
+.certificate-hover-preview {
+  position: fixed;
+  z-index: 9998;
+  pointer-events: none;
+}
+
+.certificate-hover-preview-shell {
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--border-color) 94%, rgba(148, 163, 184, 0.18));
+  background: color-mix(in srgb, var(--bg-surface) 96%, var(--bg-primary));
+  box-shadow:
+    0 28px 52px -28px color-mix(in srgb, var(--shadow-color) 88%, transparent),
+    0 0 0 1px color-mix(in srgb, white 9%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+.certificate-hover-preview-head {
+  padding: 0.82rem 0.9rem 0.72rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-color) 84%, transparent);
+  background: color-mix(in srgb, var(--bg-surface) 94%, var(--bg-primary));
+}
+
+.certificate-hover-preview-head strong {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--heading-color);
+}
+
+.certificate-hover-preview-label {
+  display: inline-block;
+  margin-bottom: 0.24rem;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text-secondary) 78%, var(--text-primary));
+}
+
+.certificate-hover-preview-media {
+  aspect-ratio: 210 / 297;
+  padding: 0.5rem;
+  background: color-mix(in srgb, var(--bg-surface) 92%, var(--bg-primary));
+}
+
+.certificate-hover-preview-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: white;
+  border: 1px solid color-mix(in srgb, var(--border-color) 76%, rgba(148, 163, 184, 0.22));
+  border-radius: 14px;
+}
+
 .certificate-modal {
   width: min(980px, 100%);
   height: min(88vh, 980px);
@@ -434,7 +508,7 @@ button:focus {
 
 .certificate-modal-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
   padding: 1rem 1.1rem;
@@ -459,6 +533,52 @@ button:focus {
   color: color-mix(in srgb, var(--text-secondary) 78%, var(--text-primary));
 }
 
+.certificate-modal-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  flex-shrink: 0;
+}
+
+.certificate-modal-open,
+.certificate-modal-close {
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.certificate-modal-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 40px;
+  padding: 0 0.95rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 82%, transparent);
+  background: color-mix(in srgb, var(--bg-primary) 86%, var(--bg-surface));
+  color: var(--heading-color);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 46%, transparent),
+    0 10px 20px -18px color-mix(in srgb, var(--shadow-color) 82%, transparent);
+}
+
+.certificate-modal-open:hover {
+  border-color: color-mix(in srgb, var(--accent-color) 30%, var(--border-color));
+  background: color-mix(in srgb, var(--accent-color) 10%, var(--bg-surface));
+  transform: translateY(-1px);
+}
+
+.certificate-modal-open:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent-color) 55%, white);
+  outline-offset: 2px;
+}
+
 .certificate-modal-close {
   width: 40px;
   height: 40px;
@@ -470,24 +590,70 @@ button:focus {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 42%, transparent),
+    0 10px 18px -18px color-mix(in srgb, var(--shadow-color) 82%, transparent);
+  cursor: pointer;
 }
 
 .certificate-modal-close:hover {
   background: color-mix(in srgb, var(--accent-color) 10%, var(--bg-surface));
   border-color: color-mix(in srgb, var(--accent-color) 30%, var(--border-color));
+  transform: translateY(-1px);
+}
+
+.certificate-modal-close:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent-color) 55%, white);
+  outline-offset: 2px;
 }
 
 .certificate-modal-frame-wrap {
   flex: 1;
   min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
   background: color-mix(in srgb, var(--bg-primary) 84%, black);
 }
 
+.certificate-modal-page {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  max-width: 100%;
+  height: 100%;
+  aspect-ratio: 210 / 297;
+  border-radius: 18px;
+  overflow: hidden;
+  padding: 0.6rem;
+  background: color-mix(in srgb, var(--bg-surface) 94%, var(--bg-primary));
+  border: 1px solid color-mix(in srgb, var(--border-color) 90%, rgba(148, 163, 184, 0.18));
+  box-shadow:
+    0 24px 48px -30px rgba(15, 23, 42, 0.42),
+    0 0 0 1px rgba(148, 163, 184, 0.16);
+}
+
 .certificate-modal-frame {
+  display: block;
   width: 100%;
   height: 100%;
   border: 0;
   background: white;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.certificate-modal-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: white;
+  border: 1px solid color-mix(in srgb, var(--border-color) 78%, rgba(148, 163, 184, 0.22));
+  border-radius: 14px;
 }
 
 .resume-awards-list {
@@ -506,13 +672,25 @@ button:focus {
   transition:
     border-color 0.2s ease,
     background-color 0.2s ease,
+    box-shadow 0.2s ease,
     transform 0.2s ease;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 40%, transparent),
+    0 12px 22px -20px color-mix(in srgb, var(--shadow-color) 78%, transparent);
 }
 
 .resume-award-item:hover {
-  border-color: color-mix(in srgb, var(--accent-color) 28%, var(--border-color));
-  background: color-mix(in srgb, var(--accent-color) 8%, var(--bg-surface));
+  border-color: color-mix(in srgb, var(--accent-color) 32%, var(--border-color));
+  background: color-mix(in srgb, var(--accent-color) 10%, var(--bg-surface));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 48%, transparent),
+    0 18px 30px -24px color-mix(in srgb, var(--accent-color) 22%, var(--shadow-color));
   transform: translateY(-1px);
+}
+
+.resume-award-item:active {
+  transform: translateY(0);
 }
 
 .resume-award-meta {
@@ -545,12 +723,39 @@ button:focus {
   }
 
   .certificate-modal {
-    height: min(84vh, 720px);
+    height: min(90vh, 720px);
     border-radius: 18px;
   }
 
   .certificate-modal-head {
     padding: 0.85rem 0.9rem;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .certificate-modal-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .certificate-modal-open {
+    min-height: 38px;
+    padding: 0 0.8rem;
+    font-size: 0.82rem;
+  }
+
+  .certificate-modal-frame-wrap {
+    padding: 0.8rem;
+  }
+
+  .certificate-modal-page {
+    width: 100%;
+    max-height: 100%;
+    height: auto;
+  }
+
+  .certificate-hover-preview {
+    display: none;
   }
 
   .project-card-awards-list {

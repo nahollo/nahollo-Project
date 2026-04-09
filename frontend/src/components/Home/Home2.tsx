@@ -11,7 +11,7 @@ const workingPoints = [
   },
   {
     title: "구조가 끝까지 이어지는지 봅니다",
-    description: "브라우저에서 시작한 흐름이 API, 데이터, 운영 관점까지 자연스럽게 연결되도록 정리합니다."
+    description: "브라우저에서 시작한 흐름이 API와 데이터, 운영 관점까지 자연스럽게 이어지도록 정리합니다."
   },
   {
     title: "출시 밀도로 다듬습니다",
@@ -27,15 +27,12 @@ function Home2(): JSX.Element {
           <Col lg={7} className="home-about-description">
             <div className="section-copy-block">
               <span className="section-eyebrow">Working Model</span>
-              <h2 className="section-title">결과물은 단정하게, 구조는 끝까지 이어지게 만드는 편을 선택합니다.</h2>
-              <p className="section-lead">
-                홈에서는 깊은 자기소개 대신, 어떤 기준으로 화면과 서비스 흐름을 다루는지만 짧고 선명하게 보여줍니다.
-              </p>
+              <h2 className="section-title">단정한 결과물과 끝까지 이어지는 구조를 지향합니다.</h2>
+              <p className="section-lead">홈에서는 작업 기준만 짧게 보여줍니다.</p>
 
               <div className="about-copy-flow">
                 <p className="home-about-body">
-                  좋은 랜딩은 말이 많지 않아도 방향이 보여야 하고, 좋은 제품 UI는 다음 행동이 자연스럽게 읽혀야 한다고
-                  생각합니다.
+                  좋은 제품 UI는 말이 많지 않아도 방향과 다음 행동이 자연스럽게 읽혀야 한다고 생각합니다.
                 </p>
               </div>
 
@@ -59,11 +56,11 @@ function Home2(): JSX.Element {
             <div className="profile-surface surface-card">
               <div className="surface-card-head">
                 <span className="profile-surface-label">What I Optimize</span>
-                <h3>작업할 때 먼저 확인하는 품질 기준입니다.</h3>
+                <h3>작업 전에 먼저 보는 품질 기준입니다.</h3>
               </div>
 
               <p className="profile-surface-copy">
-                보기 좋은 화면처럼 보이는지보다 실제로 읽히고, 이어지고, 유지되는지를 먼저 점검합니다.
+                보기 좋은지보다 읽히고, 이어지고, 유지되는지를 먼저 점검합니다.
               </p>
 
               <ul className="profile-point-list">
@@ -76,7 +73,7 @@ function Home2(): JSX.Element {
               </ul>
 
               <div className="surface-card-footer">
-                <span>About에서 더 자세히 다루는 내용</span>
+                <span>About에서 이어지는 내용</span>
                 <strong>정체성 · 작업 기준 · 기술 우선순위</strong>
               </div>
             </div>

@@ -58,11 +58,6 @@ function Home(): JSX.Element {
                   </Link>
                 </div>
 
-                <p className="hero-inline-note">
-                  작업 흔적은 <a href={profile.social.github}>GitHub</a>에서, 구조화된 소개는 <Link to="/resume">이력서</Link>에서
-                  빠르게 확인할 수 있습니다.
-                </p>
-
                 <HeroValueCards />
               </div>
             </Col>
@@ -81,7 +76,7 @@ function Home(): JSX.Element {
           <div className="connect-copy">
             <span className="section-eyebrow">Open Work</span>
             <h2>브라우저에서 배포까지 이어지는 작업 기록을 열어두고 있습니다.</h2>
-            <p>프로젝트 아카이브는 결과물 중심으로, GitHub와 이력서는 작업 방식과 성장 흐름 중심으로 정리해두었습니다.</p>
+            <p>프로젝트는 결과물 중심으로, GitHub와 이력서는 작업 방식 중심으로 정리했습니다.</p>
 
             <div className="connect-actions">
               <Link to="/resume" className="connect-button connect-button-secondary">

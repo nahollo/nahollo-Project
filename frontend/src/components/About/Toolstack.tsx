@@ -1,8 +1,8 @@
 import React from "react";
-import macOs from "../../Assets/TechIcons/Apple MacOSX.svg";
-import chrome from "../../Assets/TechIcons/Google Chrome.svg";
-import intelliJ from "../../Assets/TechIcons/intellij-idea.svg";
-import vsCode from "../../Assets/TechIcons/vscode.svg";
+import macOs from "../../assets/TechIcons/Apple MacOSX.svg";
+import chrome from "../../assets/TechIcons/Google Chrome.svg";
+import intelliJ from "../../assets/TechIcons/intellij-idea.svg";
+import vsCode from "../../assets/TechIcons/vscode.svg";
 
 const toolGroups = [
   {

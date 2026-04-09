@@ -11,7 +11,7 @@ function Github(): JSX.Element {
         <h2 className="section-title">
           <strong className="purple">GitHub 활동</strong>도 꾸준히 기록하고 있습니다.
         </h2>
-        <p className="section-lead">작업 흔적과 학습 흐름이 실제로 이어지고 있는지 계속 확인하는 용도로 활용합니다.</p>
+        <p className="section-lead">작업 흔적과 학습 흐름이 실제로 이어지고 있는지 확인하는 용도로 기록합니다.</p>
       </div>
 
       <div className="github-calendar-shell surface-card">

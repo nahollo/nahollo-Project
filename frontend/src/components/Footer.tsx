@@ -22,7 +22,7 @@ function Footer(): JSX.Element {
           <Col lg="4" md="12" className="footer-copywright footer-brand">
             <span className="footer-label">nahollo</span>
             <h3>fullstack engineer</h3>
-            <p>정제된 화면과 서비스 흐름을 한 제품의 맥락에서 설계합니다.</p>
+            <p>정제된 화면과 서비스 흐름을 함께 설계합니다.</p>
           </Col>
           <Col lg="4" md="12" className="footer-copywright footer-meta">
             <span className="footer-label">Navigate</span>
@@ -33,7 +33,7 @@ function Footer(): JSX.Element {
                 </NavLink>
               ))}
             </div>
-            <h3>Copyright {year} {profile.name}</h3>
+            <h3>Copyright {year} {profile.displayName}</h3>
             <p>Browser → API → Database → Deploy</p>
           </Col>
           <Col lg="4" md="12" className="footer-body">
@@ -80,7 +80,7 @@ function Footer(): JSX.Element {
                 </a>
               </li>
             </ul>
-            <p>작업 기록과 연결은 GitHub와 소셜 채널에서 이어집니다.</p>
+            <p>기록은 GitHub와 소셜에 정리했습니다.</p>
           </Col>
         </Row>
       </Container>
