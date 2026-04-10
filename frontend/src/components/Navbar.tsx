@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { Container, Navbar } from "react-bootstrap";
-import { AiOutlineFundProjectionScreen, AiOutlineHome, AiOutlineUser } from "react-icons/ai";
+import { AiOutlineHome } from "react-icons/ai";
 import { BsGithub } from "react-icons/bs";
-import { CgFileDocument } from "react-icons/cg";
 import { NavLink } from "react-router-dom";
+import { RiBrushLine, RiGamepadLine, RiServerLine, RiToolsLine } from "react-icons/ri";
 import logoDark from "../assets/logos/logo-dark.png";
 import logoLight from "../assets/logos/logo-light.png";
-import { profile } from "../data/profile";
+import { mainNavigation, siteMeta } from "../data/site";
 
 const THEME_STORAGE_KEY = "nahollo-theme";
 
@@ -47,12 +47,19 @@ function MoonIcon(): JSX.Element {
   );
 }
 
-const navItems = [
-  { to: "/", label: "홈", icon: <AiOutlineHome />, end: true },
-  { to: "/about", label: "소개", icon: <AiOutlineUser /> },
-  { to: "/project", label: "프로젝트", icon: <AiOutlineFundProjectionScreen /> },
-  { to: "/resume", label: "이력서", icon: <CgFileDocument /> }
-];
+const navItems = mainNavigation.map((item) => ({
+  ...item,
+  icon:
+    item.to === "/"
+      ? <AiOutlineHome />
+      : item.to === "/canvas"
+        ? <RiBrushLine />
+        : item.to === "/games"
+          ? <RiGamepadLine />
+          : item.to === "/homelab"
+            ? <RiServerLine />
+            : <RiToolsLine />
+}));
 
 function NavBar(): JSX.Element {
   const [expand, setExpand] = useState(false);
@@ -101,7 +108,7 @@ function NavBar(): JSX.Element {
           as={NavLink}
           to="/"
           className="brand-link"
-          aria-label={`${profile.name} 홈으로 이동`}
+          aria-label={`${siteMeta.name} 홈으로 이동`}
           onClick={() => setExpand(false)}
         >
           {!logoError ? (
@@ -116,10 +123,10 @@ function NavBar(): JSX.Element {
                   onError={() => setLogoError(true)}
                 />
               </span>
-              <span className="brand-wordmark">{profile.name}</span>
+              <span className="brand-wordmark">{siteMeta.name}</span>
             </span>
           ) : (
-            <span className="brand-fallback">{profile.name}</span>
+            <span className="brand-fallback">{siteMeta.name}</span>
           )}
         </Navbar.Brand>
 
@@ -177,13 +184,8 @@ function NavBar(): JSX.Element {
                 </span>
               </button>
 
-              <a
-                href={profile.portfolioRepo}
-                target="_blank"
-                rel="noreferrer"
-                className="header-link header-link-github"
-              >
-                <BsGithub />
+              <a href={siteMeta.repoUrl} target="_blank" rel="noreferrer" className="header-link header-link-github">
+                <BsGithub className="nav-github-icon" />
                 <span>GitHub</span>
               </a>
             </div>

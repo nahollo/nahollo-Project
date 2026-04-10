@@ -24,13 +24,22 @@ public class DatabaseStatusService {
 			HostPort hostPort = resolveHostPort(metadata.getURL());
 
 			return new DatabaseStatus(
+				true,
 				resolveDatabaseName(connection, metadata.getURL()),
 				resolveCurrentUser(metadata.getUserName()),
 				hostPort.host(),
-				hostPort.port()
+				hostPort.port(),
+				null
 			);
 		} catch (SQLException exception) {
-			throw new IllegalStateException("Failed to inspect database connection", exception);
+			return new DatabaseStatus(
+				false,
+				"unknown",
+				"unknown",
+				"unknown",
+				null,
+				exception.getMessage()
+			);
 		}
 	}
 
