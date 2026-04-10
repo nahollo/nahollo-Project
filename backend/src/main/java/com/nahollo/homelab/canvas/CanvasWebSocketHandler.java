@@ -14,9 +14,6 @@ public class CanvasWebSocketHandler extends TextWebSocketHandler {
 
 	private final Set<WebSocketSession> sessions = ConcurrentHashMap.newKeySet();
 
-	public CanvasWebSocketHandler() {
-	}
-
 	@Override
 	public void afterConnectionEstablished(WebSocketSession session) {
 		sessions.add(session);
@@ -28,8 +25,7 @@ public class CanvasWebSocketHandler extends TextWebSocketHandler {
 	}
 
 	public void broadcast(CanvasPixelUpdate update) {
-		String payload = toJson(update);
-		TextMessage message = new TextMessage(payload);
+		TextMessage message = new TextMessage(toJson(update));
 
 		sessions.removeIf(session -> !session.isOpen());
 		for (WebSocketSession session : sessions) {
@@ -43,26 +39,27 @@ public class CanvasWebSocketHandler extends TextWebSocketHandler {
 
 	private String toJson(CanvasPixelUpdate update) {
 		return "{"
-			+ "\"x\":" + update.x()
+			+ "\"type\":\"" + escape(update.type()) + "\""
+			+ ",\"seasonCode\":\"" + escape(update.seasonCode()) + "\""
+			+ ",\"x\":" + update.x()
 			+ ",\"y\":" + update.y()
-			+ ",\"colorIndex\":" + update.colorIndex()
-			+ ",\"painter\":" + quote(update.painter())
+			+ ",\"color\":" + update.color()
+			+ ",\"painter\":\"" + escape(update.painter()) + "\""
 			+ ",\"paintedAt\":\"" + update.paintedAt() + "\""
+			+ ",\"overwrittenCount\":" + update.overwrittenCount()
 			+ "}";
 	}
 
-	private String quote(String value) {
+	private String escape(String value) {
 		if (value == null) {
-			return "null";
+			return "";
 		}
 
-		return "\""
-			+ value
-				.replace("\\", "\\\\")
-				.replace("\"", "\\\"")
-				.replace("\n", "\\n")
-				.replace("\r", "\\r")
-				.replace("\t", "\\t")
-			+ "\"";
+		return value
+			.replace("\\", "\\\\")
+			.replace("\"", "\\\"")
+			.replace("\n", "\\n")
+			.replace("\r", "\\r")
+			.replace("\t", "\\t");
 	}
 }

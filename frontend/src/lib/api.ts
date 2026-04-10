@@ -1,84 +1,87 @@
-export interface VisitorStatsResponse {
-  readonly today: number;
-  readonly total: number;
-}
+import { RGBColor } from "../data/canvas";
 
-export interface DatabaseStatusResponse {
-  readonly connected: boolean;
-  readonly databaseName: string;
-  readonly currentUser: string;
-  readonly serverAddress: string;
-  readonly serverPort: number | null;
-  readonly errorMessage: string | null;
-}
-
-export interface AppStatusResponse {
-  readonly applicationName: string;
-  readonly environment: string;
+export interface CanvasSeasonSummary {
+  readonly seasonCode: string;
+  readonly title: string;
   readonly status: string;
-  readonly serverTime: string;
-  readonly database: DatabaseStatusResponse;
+  readonly startsAt: string;
+  readonly endsAt: string;
 }
 
-export interface SystemStatusResponse {
-  readonly cpu: number;
-  readonly ram: number;
-  readonly disk: number;
-  readonly temperature: number | null;
-}
-
-export interface UptimeResponse {
-  readonly seconds: number;
-}
-
-export interface DeploymentLogEntry {
-  readonly id: string;
-  readonly workflowName: string;
-  readonly conclusion: string;
-  readonly branch: string;
-  readonly repository: string;
-  readonly finishedAt: string;
-  readonly url: string | null;
-}
-
-export interface CanvasPixelRecord {
-  readonly colorIndex: number;
-  readonly painter: string | null;
-  readonly paintedAt: string | null;
+export interface CanvasStateResponse {
+  readonly season: CanvasSeasonSummary;
+  readonly width: number;
+  readonly height: number;
+  readonly pixels: readonly number[];
+  readonly serverNow: string;
+  readonly liveStatus: string;
+  readonly placedCount: number;
 }
 
 export interface CanvasPixelUpdate {
+  readonly type: string;
+  readonly seasonCode: string;
   readonly x: number;
   readonly y: number;
-  readonly colorIndex: number;
+  readonly color: number;
   readonly painter: string | null;
   readonly paintedAt: string;
+  readonly overwrittenCount: number;
 }
 
 export interface CanvasCooldownResponse {
+  readonly canPlace: boolean;
   readonly remainingSeconds: number;
+  readonly nextPlaceAt: string;
+  readonly serverNow: string;
 }
 
 export interface CanvasPixelPlacementResponse {
   readonly success: boolean;
+  readonly code: string;
   readonly remainingSeconds: number;
+  readonly nextPlaceAt: string;
+  readonly serverNow: string;
   readonly update: CanvasPixelUpdate | null;
 }
 
+export interface CanvasPixelMetaResponse {
+  readonly x: number;
+  readonly y: number;
+  readonly nickname: string;
+  readonly color: number;
+  readonly placedAt: string | null;
+  readonly overwrittenCount: number;
+}
+
 export interface CanvasSnapshotResponse {
-  readonly id: string;
-  readonly label: string;
-  readonly savedAt: string;
+  readonly seasonCode: string;
+  readonly title: string;
+  readonly startsAt: string;
+  readonly endsAt: string;
+  readonly archivedAt: string | null;
+  readonly width: number;
+  readonly height: number;
+  readonly pixelCount: number;
+  readonly participantCount: number;
+  readonly dominantColors: readonly number[];
+  readonly thumbnailPixels: readonly number[];
+}
+
+export interface CanvasHistoryDetailResponse {
+  readonly seasonCode: string;
+  readonly title: string;
+  readonly startsAt: string;
+  readonly endsAt: string;
+  readonly archivedAt: string | null;
+  readonly width: number;
+  readonly height: number;
+  readonly pixelCount: number;
+  readonly participantCount: number;
+  readonly dominantColors: readonly number[];
+  readonly timelapseUrl: string | null;
   readonly pixels: readonly number[];
 }
-
-export interface LeaderboardEntry {
-  readonly nickname: string;
-  readonly score: number;
-  readonly createdAt: string;
-}
-
-export type RankingType = "typing" | "jump";
 
 export class ApiError<TData = unknown> extends Error {
   readonly status: number;
@@ -91,8 +94,6 @@ export class ApiError<TData = unknown> extends Error {
     this.data = data;
   }
 }
-
-const VISITOR_STORAGE_KEY = "nahollo-visitor-id";
 
 function getApiBaseUrl(): string {
   const configured = process.env.REACT_APP_API_BASE_URL?.trim();
@@ -111,7 +112,7 @@ function getApiBaseUrl(): string {
   return "";
 }
 
-export function resolveApiUrl(path: string): string {
+function resolveApiUrl(path: string): string {
   const baseUrl = getApiBaseUrl();
   return `${baseUrl}${path}`;
 }
@@ -171,92 +172,39 @@ async function requestJson<TResponse>(path: string, init?: RequestInit): Promise
   return data as TResponse;
 }
 
-function getOrCreateVisitorId(): string {
-  if (typeof window === "undefined") {
-    return "server-render";
-  }
-
-  const existing = window.localStorage.getItem(VISITOR_STORAGE_KEY);
-  if (existing) {
-    return existing;
-  }
-
-  const created =
-    typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? crypto.randomUUID()
-      : `visitor-${Math.random().toString(36).slice(2, 10)}`;
-
-  window.localStorage.setItem(VISITOR_STORAGE_KEY, created);
-  return created;
-}
-
-export async function registerVisitorHit(): Promise<VisitorStatsResponse> {
-  return requestJson<VisitorStatsResponse>("/api/stats/visitors/hit", {
-    method: "POST",
-    body: JSON.stringify({
-      clientId: getOrCreateVisitorId()
-    })
-  });
-}
-
-export function fetchVisitorStats(): Promise<VisitorStatsResponse> {
-  return requestJson<VisitorStatsResponse>("/api/stats/visitors");
-}
-
-export function fetchAppStatus(): Promise<AppStatusResponse> {
-  return requestJson<AppStatusResponse>("/api/status");
-}
-
-export function fetchSystemStatus(): Promise<SystemStatusResponse> {
-  return requestJson<SystemStatusResponse>("/api/status/system");
-}
-
-export function fetchUptime(): Promise<UptimeResponse> {
-  return requestJson<UptimeResponse>("/api/status/uptime");
-}
-
-export function fetchDeployments(): Promise<readonly DeploymentLogEntry[]> {
-  return requestJson<readonly DeploymentLogEntry[]>("/api/status/deployments");
-}
-
-export function fetchCanvasState(): Promise<readonly CanvasPixelRecord[]> {
-  return requestJson<readonly CanvasPixelRecord[]>("/api/canvas");
+export function fetchCanvasState(): Promise<CanvasStateResponse> {
+  return requestJson<CanvasStateResponse>("/api/canvas/current");
 }
 
 export function fetchCanvasCooldown(): Promise<CanvasCooldownResponse> {
   return requestJson<CanvasCooldownResponse>("/api/canvas/cooldown");
 }
 
-export function fetchCanvasHistory(): Promise<readonly CanvasSnapshotResponse[]> {
-  return requestJson<readonly CanvasSnapshotResponse[]>("/api/canvas/history");
+export function fetchCanvasHistory(page = 0, size = 12): Promise<readonly CanvasSnapshotResponse[]> {
+  return requestJson<readonly CanvasSnapshotResponse[]>(`/api/canvas/history?page=${page}&size=${size}`);
+}
+
+export function fetchCanvasHistoryDetail(seasonCode: string): Promise<CanvasHistoryDetailResponse> {
+  return requestJson<CanvasHistoryDetailResponse>(`/api/canvas/history/${encodeURIComponent(seasonCode)}`);
+}
+
+export function fetchCanvasPixelMeta(x: number, y: number): Promise<CanvasPixelMetaResponse> {
+  return requestJson<CanvasPixelMetaResponse>(`/api/canvas/pixel-meta?x=${x}&y=${y}`);
 }
 
 export function placeCanvasPixel(
   x: number,
   y: number,
-  colorIndex: number,
+  color: RGBColor,
   nickname: string
 ): Promise<CanvasPixelPlacementResponse> {
-  const headers: HeadersInit = {};
-
-  if (nickname.trim()) {
-    headers["X-Canvas-Nickname"] = nickname.trim();
-  }
-
   return requestJson<CanvasPixelPlacementResponse>("/api/canvas/pixel", {
     method: "POST",
-    headers,
-    body: JSON.stringify({ x, y, colorIndex })
-  });
-}
-
-export function fetchLeaderboard(type: RankingType): Promise<readonly LeaderboardEntry[]> {
-  return requestJson<readonly LeaderboardEntry[]>(`/api/game/ranking/${type}`);
-}
-
-export function submitLeaderboard(type: RankingType, nickname: string, score: number): Promise<readonly LeaderboardEntry[]> {
-  return requestJson<readonly LeaderboardEntry[]>(`/api/game/ranking/${type}`, {
-    method: "POST",
-    body: JSON.stringify({ nickname, score })
+    body: JSON.stringify({
+      x,
+      y,
+      color: (color.red << 16) | (color.green << 8) | color.blue,
+      nickname: nickname.trim()
+    })
   });
 }

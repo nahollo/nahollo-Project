@@ -1,250 +1,280 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Container } from "react-bootstrap";
-import { canvasPalette } from "../../data/site";
 import {
   ApiError,
-  CanvasPixelPlacementResponse,
-  CanvasPixelRecord,
+  CanvasHistoryDetailResponse,
+  CanvasPixelMetaResponse,
   CanvasPixelUpdate,
   CanvasSnapshotResponse,
+  CanvasStateResponse,
   fetchCanvasCooldown,
   fetchCanvasHistory,
+  fetchCanvasHistoryDetail,
+  fetchCanvasPixelMeta,
   fetchCanvasState,
   placeCanvasPixel,
   resolveWebSocketUrl
 } from "../../lib/api";
+import {
+  CANVAS_SIZE,
+  clampChannel,
+  DEFAULT_SELECTED_COLOR,
+  hexToRgb,
+  normalizeHex,
+  RGBColor,
+  rgbToHex,
+  unpackRgb,
+  formatSeasonCode
+} from "../../data/canvas";
+import CanvasHistoryOverlay from "./CanvasHistoryOverlay";
+import CanvasMobileColorSheet from "./CanvasMobileColorSheet";
+import CanvasMobileInfoSheet from "./CanvasMobileInfoSheet";
+import CanvasMobilePaintTray from "./CanvasMobilePaintTray";
+import CanvasMobilePixelSheet from "./CanvasMobilePixelSheet";
+import CanvasMobileTopBar from "./CanvasMobileTopBar";
+import CanvasPaintPanel from "./CanvasPaintPanel";
+import CanvasSidebar from "./CanvasSidebar";
+import { CANVAS_COPY, displayNickname } from "./canvasCopy";
+import "./canvas.css";
+import {
+  ActivityItem,
+  applyPixelUpdate,
+  cacheMeta,
+  clampOffset,
+  createBlankCanvasState,
+  formatCountdown,
+  formatRelativeTime,
+  formatTimestamp,
+  getConnectionStatusLabel,
+  mergeRecentColor,
+  normalizeCanvasState,
+  OffsetPoint,
+  PixelPoint,
+  pushActivity,
+  readRecentColors,
+  ToastState,
+  writeRecentColors
+} from "./canvasUtils";
 
-const CANVAS_SIZE = 128;
 const COOLDOWN_SECONDS = 300;
-
-interface HoveredPixel {
-  readonly index: number;
-  readonly x: number;
-  readonly y: number;
-  readonly clientX: number;
-  readonly clientY: number;
-}
-
-function createBlankCanvasState(): CanvasPixelRecord[] {
-  return Array.from({ length: CANVAS_SIZE * CANVAS_SIZE }, () => ({
-    colorIndex: 0,
-    painter: null,
-    paintedAt: null
-  }));
-}
-
-function formatCountdown(seconds: number): string {
-  const safeSeconds = Math.max(0, seconds);
-  const minutes = Math.floor(safeSeconds / 60);
-  const remainder = safeSeconds % 60;
-  return `${minutes.toString().padStart(2, "0")}:${remainder.toString().padStart(2, "0")}`;
-}
-
-function formatTimestamp(value: string | null): string {
-  if (!value) {
-    return "아직 그려진 기록이 없습니다.";
-  }
-
-  return new Intl.DateTimeFormat("ko-KR", {
-    dateStyle: "medium",
-    timeStyle: "short"
-  }).format(new Date(value));
-}
-
-function displayPainterName(value: string | null): string {
-  if (!value || value.trim() === "" || value === "Anonymous") {
-    return "익명";
-  }
-
-  return value;
-}
-
-function parseHexColor(hex: string): [number, number, number] {
-  const normalized = hex.replace("#", "");
-  const value = normalized.length === 3 ? normalized.split("").map((item) => item + item).join("") : normalized;
-  return [
-    Number.parseInt(value.slice(0, 2), 16),
-    Number.parseInt(value.slice(2, 4), 16),
-    Number.parseInt(value.slice(4, 6), 16)
-  ];
-}
-
-function applyPixelUpdate(previous: readonly CanvasPixelRecord[], update: CanvasPixelUpdate): CanvasPixelRecord[] {
-  const next = previous.slice();
-  const index = update.y * CANVAS_SIZE + update.x;
-  next[index] = {
-    colorIndex: update.colorIndex,
-    painter: update.painter,
-    paintedAt: update.paintedAt
-  };
-  return next;
-}
-
-function PixelSnapshotPreview({
-  pixels,
-  className
-}: {
-  readonly pixels: readonly number[];
-  readonly className?: string;
-}): JSX.Element {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) {
-      return;
-    }
-
-    const context = canvas.getContext("2d");
-    if (!context) {
-      return;
-    }
-
-    const imageData = context.createImageData(CANVAS_SIZE, CANVAS_SIZE);
-
-    pixels.forEach((colorIndex, index) => {
-      const [red, green, blue] = parseHexColor(canvasPalette[colorIndex] ?? canvasPalette[0]);
-      const offset = index * 4;
-      imageData.data[offset] = red;
-      imageData.data[offset + 1] = green;
-      imageData.data[offset + 2] = blue;
-      imageData.data[offset + 3] = 255;
-    });
-
-    context.putImageData(imageData, 0, 0);
-  }, [pixels]);
-
-  return <canvas ref={canvasRef} className={className} width={CANVAS_SIZE} height={CANVAS_SIZE} />;
-}
-
-function CooldownRing({ cooldownSeconds }: { readonly cooldownSeconds: number }): JSX.Element {
-  const radius = 46;
-  const circumference = 2 * Math.PI * radius;
-  const progress = Math.min(1, Math.max(0, cooldownSeconds / COOLDOWN_SECONDS));
-  const dashOffset = circumference * (1 - progress);
-
-  return (
-    <div className={`canvas-cooldown-ring ${cooldownSeconds > 0 ? "is-active" : ""}`}>
-      <svg viewBox="0 0 120 120" className="canvas-cooldown-ring-svg" aria-hidden="true">
-        <circle className="canvas-cooldown-ring-track" cx="60" cy="60" r={radius} />
-        <circle
-          className="canvas-cooldown-ring-progress"
-          cx="60"
-          cy="60"
-          r={radius}
-          strokeDasharray={circumference}
-          strokeDashoffset={dashOffset}
-        />
-      </svg>
-      <div className="canvas-cooldown-center">
-        <strong>{cooldownSeconds > 0 ? formatCountdown(cooldownSeconds) : "READY"}</strong>
-        <span>{cooldownSeconds > 0 ? "remaining" : "palette unlocked"}</span>
-      </div>
-    </div>
-  );
-}
+const MAX_ZOOM = 24;
+const NICKNAME_STORAGE_KEY = "nahollo-canvas-nickname";
+const MOBILE_BREAKPOINT = "(max-width: 991px)";
 
 function CanvasPage(): JSX.Element {
+  const stageRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [pixels, setPixels] = useState<CanvasPixelRecord[]>(() => createBlankCanvasState());
+  const dragRef = useRef<{ startX: number; startY: number; offsetX: number; offsetY: number; moved: boolean } | null>(null);
+  const metaCacheRef = useRef<Map<string, CanvasPixelMetaResponse>>(new Map());
+  const stageSizeRef = useRef(0);
+  const scaleRef = useRef(1);
+  const resizeFrameRef = useRef<number | null>(null);
+
+  const [state, setState] = useState<CanvasStateResponse | null>(null);
+  const [pixels, setPixels] = useState<number[]>(() => createBlankCanvasState(CANVAS_SIZE));
+  const [boardSize, setBoardSize] = useState(CANVAS_SIZE);
   const [history, setHistory] = useState<readonly CanvasSnapshotResponse[]>([]);
-  const [selectedColor, setSelectedColor] = useState(9);
+  const [historyDetail, setHistoryDetail] = useState<CanvasHistoryDetailResponse | null>(null);
+  const [selectedHistoryCode, setSelectedHistoryCode] = useState<string | null>(null);
+  const [placedCount, setPlacedCount] = useState(0);
+  const [selectedColor, setSelectedColor] = useState<RGBColor>(DEFAULT_SELECTED_COLOR);
+  const [customColorDraft, setCustomColorDraft] = useState<RGBColor>(DEFAULT_SELECTED_COLOR);
+  const [recentColors, setRecentColors] = useState<RGBColor[]>(() => readRecentColors(hexToRgb));
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [nickname, setNickname] = useState("");
-  const [hoveredPixel, setHoveredPixel] = useState<HoveredPixel | null>(null);
-  const [statusMessage, setStatusMessage] = useState("실시간 캔버스에 연결하는 중입니다.");
-  const [isPainting, setIsPainting] = useState(false);
+  const [selectedPixel, setSelectedPixel] = useState<PixelPoint | null>(null);
+  const [hoveredPixel, setHoveredPixel] = useState<PixelPoint | null>(null);
+  const [hoveredMeta, setHoveredMeta] = useState<CanvasPixelMetaResponse | null>(null);
+  const [selectedMeta, setSelectedMeta] = useState<CanvasPixelMetaResponse | null>(null);
+  const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
+  const [connectionState, setConnectionState] = useState<"CONNECTING" | "LIVE" | "DEGRADED" | "OFFLINE">("CONNECTING");
+  const [statusMessage, setStatusMessage] = useState(CANVAS_COPY.status.liveDescription);
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPlacing, setIsPlacing] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [isCustomColorOpen, setIsCustomColorOpen] = useState(false);
+  const [isPaintExpanded, setIsPaintExpanded] = useState(false);
+  const [isMobileInfoOpen, setIsMobileInfoOpen] = useState(false);
+  const [isMobilePixelInfoOpen, setIsMobilePixelInfoOpen] = useState(false);
+  const [scale, setScale] = useState(1);
+  const [offset, setOffset] = useState<OffsetPoint>({ x: 0, y: 0 });
+  const [stageSize, setStageSize] = useState(0);
+  const [isMobileLayout, setIsMobileLayout] = useState<boolean>(() =>
+    typeof window !== "undefined" ? window.matchMedia(MOBILE_BREAKPOINT).matches : false
+  );
 
-  const hoveredRecord = hoveredPixel ? pixels[hoveredPixel.index] : null;
-  const canPaint = cooldownSeconds <= 0 && !isPainting;
+  const isTouchMode = useMemo(
+    () => (typeof window !== "undefined" ? window.matchMedia("(hover: none), (pointer: coarse)").matches : false),
+    []
+  );
+  const selectedColorHex = useMemo(() => rgbToHex(selectedColor), [selectedColor]);
+  const canPlace = cooldownSeconds <= 0 && !isPlacing;
+  const placementProgress = `${Math.max(0, Math.min(100, ((COOLDOWN_SECONDS - cooldownSeconds) / COOLDOWN_SECONDS) * 100))}%`;
+  const connectionLabel = getConnectionStatusLabel(connectionState);
+  const cooldownLabel = canPlace ? CANVAS_COPY.status.ready : `${formatCountdown(cooldownSeconds)} 남음`;
+  const selectedLabel = selectedPixel ? `(${selectedPixel.x}, ${selectedPixel.y})` : CANVAS_COPY.status.notSelected;
+  const selectedColorLabel = selectedMeta ? rgbToHex(unpackRgb(selectedMeta.color)) : selectedColorHex;
+  const seasonLabel = formatSeasonCode(state?.season.seasonCode ?? "2026-04");
 
   useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
+    scaleRef.current = scale;
+  }, [scale]);
 
-    setNickname(window.localStorage.getItem("nahollo-canvas-nickname") ?? "");
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setNickname(window.localStorage.getItem(NICKNAME_STORAGE_KEY) ?? "");
+    }
   }, []);
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(NICKNAME_STORAGE_KEY, nickname);
+    }
+  }, [nickname]);
+
+  useEffect(() => {
+    writeRecentColors(recentColors, rgbToHex);
+  }, [recentColors]);
+
+  useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
 
-    window.localStorage.setItem("nahollo-canvas-nickname", nickname);
-  }, [nickname]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const load = async () => {
-      try {
-        const [state, historyResponse, cooldown] = await Promise.all([
-          fetchCanvasState(),
-          fetchCanvasHistory(),
-          fetchCanvasCooldown()
-        ]);
-
-        if (!isMounted) {
-          return;
-        }
-
-        setPixels(state.length ? state.slice() : createBlankCanvasState());
-        setHistory(historyResponse);
-        setCooldownSeconds(cooldown.remainingSeconds);
-      } catch (error) {
-        if (!isMounted) {
-          return;
-        }
-
-        setStatusMessage("캔버스를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    const mediaQuery = window.matchMedia(MOBILE_BREAKPOINT);
+    const handleChange = (event: MediaQueryListEvent | MediaQueryList) => {
+      const matches = "matches" in event ? event.matches : mediaQuery.matches;
+      setIsMobileLayout(matches);
+      if (!matches) {
+        setIsMobileInfoOpen(false);
+        setIsMobilePixelInfoOpen(false);
       }
     };
 
-    void load();
+    handleChange(mediaQuery);
+
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", handleChange);
+      return () => mediaQuery.removeEventListener("change", handleChange);
+    }
+
+    mediaQuery.addListener(handleChange);
+    return () => mediaQuery.removeListener(handleChange);
+  }, []);
+
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage || typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    const observer = new ResizeObserver((entries) => {
+      const nextWidth = Math.round(entries[0]?.contentRect.width ?? 0);
+      if (!nextWidth || nextWidth === stageSizeRef.current) {
+        return;
+      }
+
+      stageSizeRef.current = nextWidth;
+
+      if (resizeFrameRef.current !== null) {
+        window.cancelAnimationFrame(resizeFrameRef.current);
+      }
+
+      resizeFrameRef.current = window.requestAnimationFrame(() => {
+        resizeFrameRef.current = null;
+        setStageSize((previous) => (previous === nextWidth ? previous : nextWidth));
+        setOffset((previous) => {
+          const clamped = clampOffset(previous, scaleRef.current, nextWidth);
+          return clamped.x === previous.x && clamped.y === previous.y ? previous : clamped;
+        });
+      });
+    });
+
+    observer.observe(stage);
 
     return () => {
-      isMounted = false;
+      observer.disconnect();
+      if (resizeFrameRef.current !== null) {
+        window.cancelAnimationFrame(resizeFrameRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      const [stateResult, historyResult, cooldownResult] = await Promise.allSettled([
+        fetchCanvasState(),
+        fetchCanvasHistory(),
+        fetchCanvasCooldown()
+      ]);
+
+      if (!mounted) {
+        return;
+      }
+
+      if (stateResult.status === "fulfilled") {
+        const normalized = normalizeCanvasState(stateResult.value.width, stateResult.value.pixels);
+        setState(stateResult.value);
+        setPlacedCount(stateResult.value.placedCount);
+        setPixels(normalized.pixels);
+        setBoardSize(normalized.size);
+        setStatusMessage(CANVAS_COPY.status.liveDescription);
+      } else {
+        setToast({ tone: "error", text: CANVAS_COPY.toast.boardLoadError });
+      }
+
+      if (historyResult.status === "fulfilled") {
+        setHistory(historyResult.value);
+      }
+
+      if (cooldownResult.status === "fulfilled") {
+        setCooldownSeconds(cooldownResult.value.remainingSeconds);
+      }
+
+      setIsLoading(false);
+    };
+
+    void load();
+    return () => {
+      mounted = false;
     };
   }, []);
 
   useEffect(() => {
     const socket = new WebSocket(resolveWebSocketUrl("/ws/canvas"));
-
-    socket.onopen = () => {
-      setStatusMessage("실시간 픽셀 업데이트를 받고 있습니다.");
-    };
-
+    socket.onopen = () => setConnectionState("LIVE");
+    socket.onerror = () => setConnectionState("DEGRADED");
+    socket.onclose = () => setConnectionState("OFFLINE");
     socket.onmessage = (event) => {
       try {
         const update = JSON.parse(event.data) as CanvasPixelUpdate;
-        setPixels((previous) => applyPixelUpdate(previous, update));
+        setPixels((previous) => applyPixelUpdate(previous, boardSize, update));
+        setPlacedCount((previous) => previous + 1);
+        setRecentActivity((previous) => pushActivity(previous, update));
+        cacheMeta(metaCacheRef.current, {
+          x: update.x,
+          y: update.y,
+          nickname: update.painter ?? CANVAS_COPY.tooltip.anonymous,
+          color: update.color,
+          placedAt: update.paintedAt,
+          overwrittenCount: update.overwrittenCount
+        });
       } catch (error) {
-        setStatusMessage("실시간 메시지를 해석하지 못했습니다.");
+        setConnectionState("DEGRADED");
       }
     };
-
-    socket.onerror = () => {
-      setStatusMessage("실시간 연결이 잠시 불안정합니다. REST 상태는 계속 동작합니다.");
-    };
-
-    return () => {
-      socket.close();
-    };
-  }, []);
+    return () => socket.close();
+  }, [boardSize]);
 
   useEffect(() => {
     if (cooldownSeconds <= 0) {
       return;
     }
 
-    const interval = window.setInterval(() => {
-      setCooldownSeconds((previous) => Math.max(0, previous - 1));
-    }, 1000);
-
-    return () => {
-      window.clearInterval(interval);
-    };
+    const interval = window.setInterval(() => setCooldownSeconds((previous) => Math.max(0, previous - 1)), 1000);
+    return () => window.clearInterval(interval);
   }, [cooldownSeconds]);
 
   useEffect(() => {
@@ -258,247 +288,445 @@ function CanvasPage(): JSX.Element {
       return;
     }
 
-    const imageData = context.createImageData(CANVAS_SIZE, CANVAS_SIZE);
-
-    pixels.forEach((pixel, index) => {
-      const [red, green, blue] = parseHexColor(canvasPalette[pixel.colorIndex] ?? canvasPalette[0]);
-      const offset = index * 4;
-      imageData.data[offset] = red;
-      imageData.data[offset + 1] = green;
-      imageData.data[offset + 2] = blue;
-      imageData.data[offset + 3] = 255;
+    const imageData = context.createImageData(boardSize, boardSize);
+    pixels.forEach((color, index) => {
+      const { red, green, blue } = unpackRgb(color);
+      const offsetIndex = index * 4;
+      imageData.data[offsetIndex] = red;
+      imageData.data[offsetIndex + 1] = green;
+      imageData.data[offsetIndex + 2] = blue;
+      imageData.data[offsetIndex + 3] = 255;
     });
-
     context.putImageData(imageData, 0, 0);
-  }, [pixels]);
+  }, [boardSize, pixels]);
 
-  const selectedColorValue = useMemo(() => canvasPalette[selectedColor] ?? canvasPalette[0], [selectedColor]);
-
-  const refreshHistory = async () => {
-    try {
-      const nextHistory = await fetchCanvasHistory();
-      setHistory(nextHistory);
-    } catch (error) {
-      setStatusMessage("히스토리 갤러리를 새로고침하지 못했습니다.");
-    }
-  };
-
-  const handleCanvasPointer = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    const target = event.currentTarget;
-    const rect = target.getBoundingClientRect();
-    const x = Math.min(CANVAS_SIZE - 1, Math.max(0, Math.floor(((event.clientX - rect.left) / rect.width) * CANVAS_SIZE)));
-    const y = Math.min(CANVAS_SIZE - 1, Math.max(0, Math.floor(((event.clientY - rect.top) / rect.height) * CANVAS_SIZE)));
-
-    setHoveredPixel({
-      index: y * CANVAS_SIZE + x,
-      x,
-      y,
-      clientX: event.clientX,
-      clientY: event.clientY
-    });
-  };
-
-  const handlePlacementResult = (result: CanvasPixelPlacementResponse) => {
-    if (result.update) {
-      setPixels((previous) => applyPixelUpdate(previous, result.update));
-    }
-
-    setCooldownSeconds(result.remainingSeconds);
-    setStatusMessage(
-      result.success
-        ? `픽셀을 배치했습니다. 다음 배치까지 ${formatCountdown(result.remainingSeconds)} 기다려 주세요.`
-        : "픽셀 배치가 처리되지 않았습니다."
-    );
-  };
-
-  const handleCanvasClick = async (event: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!canPaint) {
+  useEffect(() => {
+    const target = isTouchMode ? selectedPixel : hoveredPixel;
+    if (!target) {
+      if (!isTouchMode) {
+        setHoveredMeta(null);
+      }
       return;
     }
 
-    const target = event.currentTarget;
-    const rect = target.getBoundingClientRect();
-    const x = Math.min(CANVAS_SIZE - 1, Math.max(0, Math.floor(((event.clientX - rect.left) / rect.width) * CANVAS_SIZE)));
-    const y = Math.min(CANVAS_SIZE - 1, Math.max(0, Math.floor(((event.clientY - rect.top) / rect.height) * CANVAS_SIZE)));
+    const cached = metaCacheRef.current.get(`${target.x}:${target.y}`);
+    if (cached) {
+      if (isTouchMode) {
+        setSelectedMeta(cached);
+      } else {
+        setHoveredMeta(cached);
+      }
+      return;
+    }
 
-    setIsPainting(true);
+    const timeout = window.setTimeout(async () => {
+      try {
+        const meta = await fetchCanvasPixelMeta(target.x, target.y);
+        cacheMeta(metaCacheRef.current, meta);
+        if (isTouchMode) {
+          setSelectedMeta(meta);
+        } else {
+          setHoveredMeta(meta);
+        }
+      } catch (error) {
+        if (!isTouchMode) {
+          setHoveredMeta(null);
+        }
+      }
+    }, 120);
 
+    return () => window.clearTimeout(timeout);
+  }, [hoveredPixel, isTouchMode, selectedPixel]);
+
+  useEffect(() => {
+    if (!selectedHistoryCode) {
+      setHistoryDetail(null);
+      return;
+    }
+
+    let mounted = true;
+    setIsHistoryLoading(true);
+
+    void fetchCanvasHistoryDetail(selectedHistoryCode)
+      .then((detail) => mounted && setHistoryDetail(detail))
+      .catch(() => mounted && setToast({ tone: "error", text: CANVAS_COPY.toast.historyDetailError }))
+      .finally(() => mounted && setIsHistoryLoading(false));
+
+    return () => {
+      mounted = false;
+    };
+  }, [selectedHistoryCode]);
+
+  useEffect(() => {
+    if (!toast) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => setToast(null), 3200);
+    return () => window.clearTimeout(timeout);
+  }, [toast]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+
+      setIsCustomColorOpen(false);
+      setSelectedHistoryCode(null);
+      setIsHistoryOpen(false);
+      setIsMobileInfoOpen(false);
+      setIsMobilePixelInfoOpen(false);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  const resolvePixelFromClient = (clientX: number, clientY: number): PixelPoint | null => {
+    const rect = stageRef.current?.getBoundingClientRect();
+    if (!rect || stageSize <= 0) {
+      return null;
+    }
+
+    const canvasLeft = rect.left + stageSize / 2 + offset.x - (stageSize * scale) / 2;
+    const canvasTop = rect.top + stageSize / 2 + offset.y - (stageSize * scale) / 2;
+    const cellSize = (stageSize * scale) / boardSize;
+    const x = Math.floor((clientX - canvasLeft) / cellSize);
+    const y = Math.floor((clientY - canvasTop) / cellSize);
+    return x >= 0 && y >= 0 && x < boardSize && y < boardSize ? { x, y } : null;
+  };
+
+  const handlePlace = async () => {
+    if (!selectedPixel || !canPlace) {
+      return;
+    }
+
+    setIsPlacing(true);
     try {
-      const result = await placeCanvasPixel(x, y, selectedColor, nickname);
-      handlePlacementResult(result);
-      await refreshHistory();
+      const result = await placeCanvasPixel(selectedPixel.x, selectedPixel.y, selectedColor, nickname);
+      if (result.update) {
+        setPixels((previous) => applyPixelUpdate(previous, boardSize, result.update));
+        setPlacedCount((previous) => previous + 1);
+        setRecentActivity((previous) => pushActivity(previous, result.update));
+        cacheMeta(metaCacheRef.current, {
+          x: result.update.x,
+          y: result.update.y,
+          nickname: result.update.painter ?? CANVAS_COPY.tooltip.anonymous,
+          color: result.update.color,
+          placedAt: result.update.paintedAt,
+          overwrittenCount: result.update.overwrittenCount
+        });
+      }
+      setCooldownSeconds(result.remainingSeconds);
+      setToast({ tone: "success", text: CANVAS_COPY.toast.placeSuccess });
     } catch (error) {
       if (error instanceof ApiError && error.status === 429) {
         const remaining =
-          typeof error.data === "object" &&
-          error.data !== null &&
-          "remainingSeconds" in error.data &&
-          typeof error.data.remainingSeconds === "number"
-            ? error.data.remainingSeconds
+          typeof error.data === "object" && error.data && "remainingSeconds" in error.data
+            ? Number((error.data as { remainingSeconds: number }).remainingSeconds)
             : COOLDOWN_SECONDS;
 
         setCooldownSeconds(remaining);
-        setStatusMessage(`쿨다운 중입니다. ${formatCountdown(remaining)} 후에 다시 그릴 수 있습니다.`);
-      } else {
-        setStatusMessage("픽셀을 배치하지 못했습니다. 잠시 후 다시 시도해 주세요.");
       }
+      setToast({ tone: "error", text: CANVAS_COPY.toast.placeError });
     } finally {
-      setIsPainting(false);
+      setIsPlacing(false);
     }
   };
 
+  const handleStageWheel = (event: React.WheelEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const nextScale = Math.max(1, Math.min(MAX_ZOOM, scale * (event.deltaY > 0 ? 0.92 : 1.08)));
+    setScale(nextScale);
+    setOffset((previous) => clampOffset(previous, nextScale, stageSizeRef.current));
+  };
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    dragRef.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      offsetX: offset.x,
+      offsetY: offset.y,
+      moved: false
+    };
+  };
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const point = resolvePixelFromClient(event.clientX, event.clientY);
+    if (!isTouchMode) {
+      setHoveredPixel(point);
+    }
+
+    if (!dragRef.current) {
+      return;
+    }
+
+    const deltaX = event.clientX - dragRef.current.startX;
+    const deltaY = event.clientY - dragRef.current.startY;
+    if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) {
+      dragRef.current.moved = true;
+      setOffset(
+        clampOffset(
+          { x: dragRef.current.offsetX + deltaX, y: dragRef.current.offsetY + deltaY },
+          scale,
+          stageSizeRef.current
+        )
+      );
+    }
+  };
+
+  const finishPointer = (event: React.PointerEvent<HTMLDivElement>) => {
+    const moved = dragRef.current?.moved ?? false;
+    dragRef.current = null;
+    if (moved) {
+      return;
+    }
+
+    const point = resolvePixelFromClient(event.clientX, event.clientY);
+    if (!point) {
+      return;
+    }
+
+    setSelectedPixel(point);
+    if (isTouchMode) {
+      setSelectedMeta(metaCacheRef.current.get(`${point.x}:${point.y}`) ?? null);
+      setIsMobilePixelInfoOpen(true);
+    }
+  };
+
+  const computeBounds = (point: PixelPoint | null) => {
+    if (!point || stageSize <= 0) {
+      return undefined;
+    }
+
+    const cellSize = (stageSize * scale) / boardSize;
+    return {
+      left: stageSize / 2 + offset.x - (stageSize * scale) / 2 + point.x * cellSize,
+      top: stageSize / 2 + offset.y - (stageSize * scale) / 2 + point.y * cellSize,
+      width: cellSize,
+      height: cellSize
+    };
+  };
+
+  const hoveredBounds = computeBounds(hoveredPixel);
+  const selectedBounds = computeBounds(selectedPixel);
+  const activeMeta = isTouchMode ? selectedMeta : hoveredMeta;
+  const stageRect = stageRef.current?.getBoundingClientRect();
+
+  const tooltipStyle = (() => {
+    const bounds = computeBounds(isTouchMode ? selectedPixel : hoveredPixel);
+    if (!bounds || !stageRect) {
+      return undefined;
+    }
+
+    const width = Math.min(stageSize * 0.28, 260);
+    let left = stageRect.left + bounds.left + bounds.width + 12;
+    let top = stageRect.top + bounds.top - 12;
+    if (left + width > window.innerWidth - 16) {
+      left = stageRect.left + bounds.left - width - 12;
+    }
+    if (top < 12) {
+      top = stageRect.top + bounds.top + bounds.height + 12;
+    }
+    return { left, top };
+  })();
+
   return (
-    <section className="playground-page page-canvas">
-      <Container className="playground-shell canvas-shell">
-        <header className="page-intro canvas-intro">
-          <div className="page-intro-head">
-            <span className="section-eyebrow">Canvas</span>
-            <h1 className="page-title glow-text">128×128 live pixel board</h1>
-            <p className="page-intro-description">
-              한 번 그리면 5분 동안 기다려야 합니다. 느리지만, 그래서 더 많은 사람의 작은 선택이 선명하게 남습니다.
-            </p>
-          </div>
-
-          <div className="canvas-status-banner nahollo-card">
-            <strong>Realtime status</strong>
-            <p>{statusMessage}</p>
-          </div>
-        </header>
-
-        <div className="canvas-layout">
-          <section className="canvas-board-panel nahollo-card">
-            <div className="canvas-board-header">
-              <div>
-                <span className="section-eyebrow">Live board</span>
-                <h2>nahollo community canvas</h2>
-              </div>
-              <div className="canvas-selected-chip">
-                <span style={{ backgroundColor: selectedColorValue }} />
-                Color {selectedColor.toString().padStart(2, "0")}
-              </div>
-            </div>
-
-            <div className="canvas-stage">
-              <div className="canvas-stage-shell">
+    <section className="canvas-page">
+      <div className="canvas-stage-layer">
+        <div className="canvas-stage-shell">
+          <div className="canvas-center-column">
+            <div className="canvas-board-frame">
+              <div
+                ref={stageRef}
+                className="canvas-board-stage"
+                onWheel={handleStageWheel}
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={finishPointer}
+                onPointerLeave={() => !isTouchMode && setHoveredPixel(null)}
+              >
                 <canvas
                   ref={canvasRef}
                   className="canvas-board"
-                  width={CANVAS_SIZE}
-                  height={CANVAS_SIZE}
-                  onMouseMove={handleCanvasPointer}
-                  onMouseLeave={() => setHoveredPixel(null)}
-                  onClick={handleCanvasClick}
+                  width={boardSize}
+                  height={boardSize}
+                  style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})` }}
                 />
+                {scale >= 8 && (
+                  <div className="canvas-grid-overlay" style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})` }} />
+                )}
+                {hoveredBounds && !isTouchMode && <span className="canvas-hover-outline" style={hoveredBounds} aria-hidden="true" />}
+                {selectedBounds && <span className="canvas-selected-outline" style={selectedBounds} aria-hidden="true" />}
               </div>
-
-              {hoveredPixel && hoveredRecord && (
-                <div
-                  className="canvas-tooltip"
-                  style={{
-                    top: hoveredPixel.clientY + 18,
-                    left: hoveredPixel.clientX + 18
-                  }}
-                >
-                  <strong>
-                    ({hoveredPixel.x}, {hoveredPixel.y})
-                  </strong>
-                  <span>{displayPainterName(hoveredRecord.painter)}</span>
-                  <span>{formatTimestamp(hoveredRecord.paintedAt)}</span>
-                </div>
-              )}
             </div>
-          </section>
 
-          <aside className="canvas-controls">
-            <section className="canvas-control-panel nahollo-card">
-              <div className="canvas-control-head">
-                <span className="section-eyebrow">Cooldown</span>
-                <h3>5 minute lock</h3>
-              </div>
-              <CooldownRing cooldownSeconds={cooldownSeconds} />
-              <p>{cooldownSeconds > 0 ? "쿨다운이 끝날 때까지 팔레트가 잠깁니다." : "지금 바로 한 칸을 남길 수 있습니다."}</p>
-            </section>
-
-            <section className="canvas-control-panel nahollo-card">
-              <div className="canvas-control-head">
-                <span className="section-eyebrow">Painter</span>
-                <h3>닉네임</h3>
-              </div>
-              <p>비워 두면 익명으로 기록됩니다. 닉네임은 이 브라우저에만 저장됩니다.</p>
-              <input
-                type="text"
-                className="play-input"
-                maxLength={20}
-                placeholder="익명"
-                value={nickname}
-                onChange={(event) => setNickname(event.target.value)}
-              />
-            </section>
-
-            <section className="canvas-control-panel nahollo-card">
-              <div className="canvas-control-head">
-                <span className="section-eyebrow">Palette</span>
-                <h3>32 colors</h3>
-              </div>
-              <p>{cooldownSeconds > 0 ? `${formatCountdown(cooldownSeconds)} 동안 팔레트가 비활성화됩니다.` : "색을 고른 뒤 보드를 클릭해 픽셀을 남겨 보세요."}</p>
-              <div className={`canvas-palette ${cooldownSeconds > 0 ? "is-disabled" : ""}`}>
-                {canvasPalette.map((color, index) => (
-                  <button
-                    key={color}
-                    type="button"
-                    className={`palette-swatch ${selectedColor === index ? "selected" : ""}`}
-                    style={{ backgroundColor: color }}
-                    disabled={!canPaint}
-                    onClick={() => setSelectedColor(index)}
-                    aria-label={`색상 ${index + 1}`}
-                  />
-                ))}
-              </div>
-            </section>
-
-            <section className="canvas-control-panel nahollo-card">
-              <div className="canvas-control-head">
-                <span className="section-eyebrow">Rules</span>
-                <h3>slow mode</h3>
-              </div>
-              <ul className="playground-note-list compact">
-                <li>IP 기준 5분 쿨다운이 백엔드에서 강제됩니다.</li>
-                <li>웹소켓으로 다른 사용자의 픽셀도 즉시 반영됩니다.</li>
-                <li>저장된 스냅샷은 아래 갤러리에서 다시 볼 수 있습니다.</li>
-              </ul>
-            </section>
-          </aside>
+            <div className="canvas-status-bar">
+              <span>{CANVAS_COPY.status.hover}: {hoveredPixel ? `(${hoveredPixel.x}, ${hoveredPixel.y})` : "—"}</span>
+              <span>{CANVAS_COPY.status.selected}: {selectedPixel ? `(${selectedPixel.x}, ${selectedPixel.y})` : "—"}</span>
+              <span>{CANVAS_COPY.status.zoom}: {Math.round(scale * 100)}%</span>
+              <span>{CANVAS_COPY.status.placedPixels}: {placedCount}</span>
+            </div>
+          </div>
         </div>
+      </div>
 
-        <section className="play-section canvas-history-section">
-          <div className="play-section-head">
-            <div>
-              <span className="section-eyebrow">History</span>
-              <h2 className="section-title">지난 캔버스 장면</h2>
+      <div className="canvas-overlay-root">
+        {!isMobileLayout && (
+          <>
+            <div className="canvas-overlay-slot canvas-overlay-slot-left">
+              <CanvasSidebar
+                season={state?.season ?? null}
+                boardSize={boardSize}
+                statusMessage={statusMessage}
+                connectionLabel={connectionLabel}
+                cooldownLabel={cooldownLabel}
+                selectedLabel={selectedLabel}
+                selectedColorLabel={selectedColorLabel}
+                nickname={nickname}
+                onNicknameChange={setNickname}
+                recentActivity={recentActivity.map((item) => item.text)}
+              />
             </div>
-            <p className="section-lead">자동 저장된 스냅샷을 아래에서 확인할 수 있습니다.</p>
-          </div>
 
-          <div className="canvas-history-grid">
-            {history.length > 0 ? (
-              history.map((snapshot) => (
-                <article key={snapshot.id} className="canvas-history-card nahollo-card">
-                  <PixelSnapshotPreview pixels={snapshot.pixels} className="canvas-history-preview" />
-                  <div className="canvas-history-copy">
-                    <strong>{snapshot.label}</strong>
-                    <span>{formatTimestamp(snapshot.savedAt)}</span>
-                  </div>
-                </article>
-              ))
-            ) : (
-              <article className="canvas-history-empty nahollo-card">
-                <strong>아직 저장된 캔버스가 없습니다.</strong>
-                <p>첫 번째 자동 저장이 생기면 여기에 지난 장면이 쌓입니다.</p>
-              </article>
-            )}
+            <button type="button" className="canvas-history-pill" onClick={() => setIsHistoryOpen(true)}>
+              <span className="canvas-chip">{CANVAS_COPY.chips.history}</span>
+              <span className="canvas-history-copy">
+                <strong>{CANVAS_COPY.actions.openGallery}</strong>
+              </span>
+            </button>
+
+            <div className="canvas-overlay-slot canvas-overlay-slot-right">
+              <CanvasPaintPanel
+                selectedColor={selectedColor}
+                customColorDraft={customColorDraft}
+                recentColors={recentColors}
+                isExpanded={isPaintExpanded}
+                canPlace={canPlace}
+                isPlacing={isPlacing}
+                cooldownLabel={formatCountdown(cooldownSeconds)}
+                placementProgress={placementProgress}
+                isCustomColorOpen={isCustomColorOpen}
+                onToggleExpanded={() => setIsPaintExpanded((previous) => !previous)}
+                onPlace={handlePlace}
+                onPresetClick={setSelectedColor}
+                onToggleCustom={() => setIsCustomColorOpen((previous) => !previous)}
+                onCloseCustom={() => setIsCustomColorOpen(false)}
+                onCustomHexChange={(value) => setCustomColorDraft(hexToRgb(normalizeHex(value)))}
+                onCustomPickerChange={(value) => setCustomColorDraft(hexToRgb(value))}
+                onCustomChannelChange={(channel, value) =>
+                  setCustomColorDraft((previous) => ({ ...previous, [channel]: clampChannel(value) }))
+                }
+                onApplyCustom={() => {
+                  setSelectedColor(customColorDraft);
+                  setRecentColors((previous) => mergeRecentColor(previous, customColorDraft, rgbToHex));
+                  setIsCustomColorOpen(false);
+                }}
+                onPickRecent={setCustomColorDraft}
+              />
+            </div>
+          </>
+        )}
+
+        {isMobileLayout && (
+          <>
+            <div className="canvas-overlay-slot canvas-mobile-slot-top">
+              <CanvasMobileTopBar
+                seasonLabel={seasonLabel}
+                connectionLabel={connectionLabel}
+                cooldownLabel={cooldownLabel}
+                onOpenInfo={() => setIsMobileInfoOpen(true)}
+                onOpenHistory={() => setIsHistoryOpen(true)}
+              />
+            </div>
+
+            <div className="canvas-overlay-slot canvas-mobile-slot-bottom">
+              <CanvasMobilePaintTray
+                selectedColor={selectedColor}
+                isExpanded={isPaintExpanded}
+                canPlace={canPlace}
+                isPlacing={isPlacing}
+                cooldownLabel={formatCountdown(cooldownSeconds)}
+                placementProgress={placementProgress}
+                onToggleExpanded={() => setIsPaintExpanded((previous) => !previous)}
+                onPlace={handlePlace}
+                onPresetClick={setSelectedColor}
+                onToggleCustom={() => setIsCustomColorOpen((previous) => !previous)}
+              />
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="canvas-floating-root">
+        {!isMobileLayout && activeMeta && tooltipStyle && (
+          <div className="canvas-tooltip" style={tooltipStyle}>
+            <strong>({activeMeta.x}, {activeMeta.y})</strong>
+            <span>{CANVAS_COPY.tooltip.placedBy} {displayNickname(activeMeta.nickname)}</span>
+            <span>{rgbToHex(unpackRgb(activeMeta.color))}</span>
+            <span>{formatTimestamp(activeMeta.placedAt)}</span>
+            <span>{formatRelativeTime(activeMeta.placedAt)}</span>
           </div>
-        </section>
-      </Container>
+        )}
+
+        <CanvasHistoryOverlay
+          isOpen={isHistoryOpen}
+          history={history}
+          selectedHistoryCode={selectedHistoryCode}
+          historyDetail={historyDetail}
+          isHistoryLoading={isHistoryLoading}
+          onCloseDrawer={() => setIsHistoryOpen(false)}
+          onOpenDetail={setSelectedHistoryCode}
+          onCloseDetail={() => setSelectedHistoryCode(null)}
+        />
+
+        <CanvasMobileInfoSheet
+          isOpen={isMobileLayout && isMobileInfoOpen}
+          seasonLabel={seasonLabel}
+          boardSize={boardSize}
+          statusMessage={statusMessage}
+          connectionLabel={connectionLabel}
+          cooldownLabel={cooldownLabel}
+          selectedLabel={selectedLabel}
+          selectedColorLabel={selectedColorLabel}
+          nickname={nickname}
+          onNicknameChange={setNickname}
+          recentActivity={recentActivity.map((item) => item.text)}
+          onClose={() => setIsMobileInfoOpen(false)}
+        />
+
+        <CanvasMobilePixelSheet
+          isOpen={isMobileLayout && isMobilePixelInfoOpen && !!selectedMeta}
+          selectedLabel={selectedLabel}
+          nickname={displayNickname(selectedMeta?.nickname)}
+          color={selectedMeta ? unpackRgb(selectedMeta.color) : selectedColor}
+          absoluteTime={formatTimestamp(selectedMeta?.placedAt ?? null)}
+          relativeTime={formatRelativeTime(selectedMeta?.placedAt ?? null)}
+          onClose={() => setIsMobilePixelInfoOpen(false)}
+        />
+
+        <CanvasMobileColorSheet
+          isOpen={isMobileLayout && isCustomColorOpen}
+          customColorDraft={customColorDraft}
+          recentColors={recentColors}
+          onClose={() => setIsCustomColorOpen(false)}
+          onCustomHexChange={(value) => setCustomColorDraft(hexToRgb(normalizeHex(value)))}
+          onCustomPickerChange={(value) => setCustomColorDraft(hexToRgb(value))}
+          onCustomChannelChange={(channel, value) =>
+            setCustomColorDraft((previous) => ({ ...previous, [channel]: clampChannel(value) }))
+          }
+          onApply={() => {
+            setSelectedColor(customColorDraft);
+            setRecentColors((previous) => mergeRecentColor(previous, customColorDraft, rgbToHex));
+            setIsCustomColorOpen(false);
+          }}
+          onPickRecent={setCustomColorDraft}
+        />
+
+        {toast && <div className={`canvas-toast is-${toast.tone}`}>{toast.text}</div>}
+        {isLoading && <div className="canvas-loading-overlay">{CANVAS_COPY.status.loadingBoard}</div>}
+      </div>
     </section>
   );
 }

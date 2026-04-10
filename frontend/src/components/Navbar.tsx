@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { Container, Navbar } from "react-bootstrap";
-import { AiOutlineHome } from "react-icons/ai";
+import { AiOutlineFundProjectionScreen, AiOutlineHome, AiOutlineUser } from "react-icons/ai";
 import { BsGithub } from "react-icons/bs";
+import { CgFileDocument } from "react-icons/cg";
 import { NavLink } from "react-router-dom";
-import { RiBrushLine, RiGamepadLine, RiServerLine, RiToolsLine } from "react-icons/ri";
-import logoDark from "../assets/logos/logo-dark.png";
-import logoLight from "../assets/logos/logo-light.png";
-import { mainNavigation, siteMeta } from "../data/site";
+import logoDark from "../Assets/logos/logo-dark.png";
+import logoLight from "../Assets/logos/logo-light.png";
+import { profile } from "../data/profile";
 
 const THEME_STORAGE_KEY = "nahollo-theme";
 
@@ -47,19 +47,12 @@ function MoonIcon(): JSX.Element {
   );
 }
 
-const navItems = mainNavigation.map((item) => ({
-  ...item,
-  icon:
-    item.to === "/"
-      ? <AiOutlineHome />
-      : item.to === "/canvas"
-        ? <RiBrushLine />
-        : item.to === "/games"
-          ? <RiGamepadLine />
-          : item.to === "/homelab"
-            ? <RiServerLine />
-            : <RiToolsLine />
-}));
+const navItems = [
+  { to: "/", label: "홈", icon: <AiOutlineHome />, end: true },
+  { to: "/canvas", label: "캔버스", icon: <AiOutlineUser /> },
+  { to: "/project", label: "프로젝트", icon: <AiOutlineFundProjectionScreen /> },
+  { to: "/resume", label: "이력서", icon: <CgFileDocument /> }
+];
 
 function NavBar(): JSX.Element {
   const [expand, setExpand] = useState(false);
@@ -90,8 +83,13 @@ function NavBar(): JSX.Element {
   }, []);
 
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    if (typeof document !== "undefined" && document.documentElement) {
+      document.documentElement.setAttribute("data-theme", theme);
+    }
+
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    }
   }, [theme]);
 
   useEffect(() => {
@@ -108,7 +106,7 @@ function NavBar(): JSX.Element {
           as={NavLink}
           to="/"
           className="brand-link"
-          aria-label={`${siteMeta.name} 홈으로 이동`}
+          aria-label={`${profile.name} 홈으로 이동`}
           onClick={() => setExpand(false)}
         >
           {!logoError ? (
@@ -123,10 +121,10 @@ function NavBar(): JSX.Element {
                   onError={() => setLogoError(true)}
                 />
               </span>
-              <span className="brand-wordmark">{siteMeta.name}</span>
+              <span className="brand-wordmark">{profile.name}</span>
             </span>
           ) : (
-            <span className="brand-fallback">{siteMeta.name}</span>
+            <span className="brand-fallback">{profile.name}</span>
           )}
         </Navbar.Brand>
 
@@ -184,8 +182,13 @@ function NavBar(): JSX.Element {
                 </span>
               </button>
 
-              <a href={siteMeta.repoUrl} target="_blank" rel="noreferrer" className="header-link header-link-github">
-                <BsGithub className="nav-github-icon" />
+              <a
+                href={profile.portfolioRepo}
+                target="_blank"
+                rel="noreferrer"
+                className="header-link header-link-github"
+              >
+                <BsGithub />
                 <span>GitHub</span>
               </a>
             </div>

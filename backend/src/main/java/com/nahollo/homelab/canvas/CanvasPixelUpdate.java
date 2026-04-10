@@ -3,10 +3,13 @@ package com.nahollo.homelab.canvas;
 import java.time.Instant;
 
 public record CanvasPixelUpdate(
+	String type,
+	String seasonCode,
 	int x,
 	int y,
-	int colorIndex,
+	int color,
 	String painter,
-	Instant paintedAt
+	Instant paintedAt,
+	int overwrittenCount
 ) {
 }

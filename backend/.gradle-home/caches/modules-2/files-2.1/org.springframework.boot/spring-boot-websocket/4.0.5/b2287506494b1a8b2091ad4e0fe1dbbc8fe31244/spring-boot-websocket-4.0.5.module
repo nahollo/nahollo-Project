@@ -1,0 +1,146 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "org.springframework.boot",
+    "module": "spring-boot-websocket",
+    "version": "4.0.5",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "9.4.1"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "dependencies": [
+        {
+          "group": "org.springframework.boot",
+          "module": "spring-boot",
+          "version": {
+            "requires": "4.0.5"
+          }
+        },
+        {
+          "group": "org.springframework",
+          "module": "spring-messaging",
+          "version": {
+            "requires": "7.0.6"
+          }
+        },
+        {
+          "group": "org.springframework",
+          "module": "spring-websocket",
+          "version": {
+            "requires": "7.0.6"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "spring-boot-websocket-4.0.5.jar",
+          "url": "spring-boot-websocket-4.0.5.jar",
+          "size": 16301,
+          "sha512": "f4015f129a1d0903ae6f50e7d8c782e94ddc60729f721cdcf2c1b59ba77883e98d1f94abb6056dffb61d5c95dcb7903e8fd8c2db9243bfb37a8df9025aaeda3b",
+          "sha256": "7cdd551126daf94d2e59ad5922ddb6fe2d48e9ca5c67bfed74d99615d71a5337",
+          "sha1": "7e304dff19ed1eeddbe3a53cd400cee8a194a774",
+          "md5": "cfd5e7c06a668e702dfb4d001611cbfd"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 17,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "org.springframework.boot",
+          "module": "spring-boot",
+          "version": {
+            "requires": "4.0.5"
+          }
+        },
+        {
+          "group": "org.springframework",
+          "module": "spring-messaging",
+          "version": {
+            "requires": "7.0.6"
+          }
+        },
+        {
+          "group": "org.springframework",
+          "module": "spring-websocket",
+          "version": {
+            "requires": "7.0.6"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "spring-boot-websocket-4.0.5.jar",
+          "url": "spring-boot-websocket-4.0.5.jar",
+          "size": 16301,
+          "sha512": "f4015f129a1d0903ae6f50e7d8c782e94ddc60729f721cdcf2c1b59ba77883e98d1f94abb6056dffb61d5c95dcb7903e8fd8c2db9243bfb37a8df9025aaeda3b",
+          "sha256": "7cdd551126daf94d2e59ad5922ddb6fe2d48e9ca5c67bfed74d99615d71a5337",
+          "sha1": "7e304dff19ed1eeddbe3a53cd400cee8a194a774",
+          "md5": "cfd5e7c06a668e702dfb4d001611cbfd"
+        }
+      ]
+    },
+    {
+      "name": "javadocElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "javadoc",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "spring-boot-websocket-4.0.5-javadoc.jar",
+          "url": "spring-boot-websocket-4.0.5-javadoc.jar",
+          "size": 106698,
+          "sha512": "26350e1e2074d7f4b23d784ba61bf25e3441c6bad6baa707aa81fe11ac4c5440ea3284f0cdc6bb30e699083aebc637e6e36de9f2e438f01a394098e3aa0a0a22",
+          "sha256": "f11c526a292ad0254d76b406272f687ce5a563c9db70b26db2dc04fa3bde9478",
+          "sha1": "84fa14ac0473be1d668acacdff32302d312cdfa7",
+          "md5": "08d69f2e1c8a2430db6ce42626ac279b"
+        }
+      ]
+    },
+    {
+      "name": "sourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "spring-boot-websocket-4.0.5-sources.jar",
+          "url": "spring-boot-websocket-4.0.5-sources.jar",
+          "size": 9318,
+          "sha512": "9ec477ff53d90f08700a6e0467c570d7efd971367534173f234da354d23cb389b3dc9a3cc27f8285cf5af76bcd95e8d8708f88fb3f8721afd382028b7a01e89e",
+          "sha256": "39033eaeb535986253ea5fb279f6a2a69ae4daa089e3eea3480128d64eba7f90",
+          "sha1": "3924decdfc33e3da2c5758a80acabdc928715374",
+          "md5": "f87eae59adb1e76ae516bd1a65a9f841"
+        }
+      ]
+    }
+  ]
+}
