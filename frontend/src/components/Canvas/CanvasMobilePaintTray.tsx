@@ -1,22 +1,39 @@
 import React from "react";
 import { FIXED_CANVAS_PALETTE, RGBColor, rgbToHex } from "../../data/canvas";
 import { CANVAS_COPY } from "./canvasCopy";
+import { PlaceActionState } from "./CanvasPaintPanel";
 
 interface CanvasMobilePaintTrayProps {
   readonly selectedColor: RGBColor;
   readonly isExpanded: boolean;
-  readonly canPlace: boolean;
-  readonly isPlacing: boolean;
   readonly cooldownLabel: string;
   readonly placementProgress: string;
+  readonly placeState: PlaceActionState;
+  readonly isPlaceDisabled: boolean;
+  readonly hasPlaceError: boolean;
   readonly onToggleExpanded: () => void;
   readonly onPlace: () => void;
   readonly onPresetClick: (color: RGBColor) => void;
   readonly onToggleCustom: () => void;
 }
 
+function resolvePlaceLabel(placeState: PlaceActionState, cooldownLabel: string): string {
+  if (placeState === "loading") {
+    return CANVAS_COPY.actions.placing;
+  }
+  if (placeState === "cooldown") {
+    return cooldownLabel;
+  }
+  if (placeState === "offline") {
+    return CANVAS_COPY.actions.connectionLost;
+  }
+  return CANVAS_COPY.actions.placePixelReady;
+}
+
 function CanvasMobilePaintTray(props: CanvasMobilePaintTrayProps): JSX.Element {
   const selectedHex = rgbToHex(props.selectedColor);
+  const placeLabel = resolvePlaceLabel(props.placeState, props.cooldownLabel);
+  const isReady = props.placeState === "ready";
 
   return (
     <div className={`canvas-mobile-paint-tray ${props.isExpanded ? "is-expanded" : "is-collapsed"}`}>
@@ -28,19 +45,50 @@ function CanvasMobilePaintTray(props: CanvasMobilePaintTrayProps): JSX.Element {
         </div>
         <div className="canvas-mobile-paint-actions">
           <button type="button" className="canvas-mobile-tray-toggle" onClick={props.onToggleExpanded} aria-expanded={props.isExpanded}>
-            {props.isExpanded ? CANVAS_COPY.actions.closePaint : CANVAS_COPY.actions.openPaint}
+            <span>{props.isExpanded ? CANVAS_COPY.actions.closePaint : CANVAS_COPY.actions.openPaint}</span>
+            <span className={`canvas-expand-caret ${props.isExpanded ? "is-open" : "is-closed"}`} aria-hidden="true">
+              ^
+            </span>
           </button>
-          <button type="button" className="canvas-place-button" onClick={props.onPlace} disabled={!props.canPlace}>
-            {props.isPlacing ? CANVAS_COPY.actions.placing : props.canPlace ? CANVAS_COPY.actions.placePixel : props.cooldownLabel}
+          <button
+            type="button"
+            className={`canvas-place-button is-${props.placeState} ${props.hasPlaceError ? "is-error" : ""}`}
+            onClick={props.onPlace}
+            disabled={props.isPlaceDisabled}
+            aria-busy={props.placeState === "loading"}
+          >
+            {props.placeState === "loading" ? (
+              <>
+                <span className="canvas-loading-dots" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </span>
+                <span>{CANVAS_COPY.actions.placing}</span>
+              </>
+            ) : (
+              <>
+                <span className="canvas-place-indicator" style={{ backgroundColor: selectedHex }} aria-hidden="true" />
+                <span>{placeLabel}</span>
+              </>
+            )}
           </button>
         </div>
       </div>
 
-      {props.isExpanded && (
-        <div className="canvas-mobile-tray-sheet">
+      <div className={`canvas-mobile-tray-sheet ${props.isExpanded ? "is-open" : "is-closed"}`} aria-hidden={!props.isExpanded}>
+        <div className="canvas-mobile-tray-sheet-inner">
           <div className="canvas-mobile-tray-status">
-            <span className="canvas-paint-trigger-state">{props.canPlace ? CANVAS_COPY.status.ready : `${props.cooldownLabel} 남음`}</span>
-            <span className="canvas-cooldown-label">{props.canPlace ? CANVAS_COPY.status.ready : `${CANVAS_COPY.paint.cooldownPrefix} ${props.cooldownLabel}`}</span>
+            <span className={`canvas-paint-trigger-state is-${props.placeState}`}>
+              {props.placeState === "offline"
+                ? `! ${CANVAS_COPY.status.offline}`
+                : isReady
+                ? CANVAS_COPY.actions.placePixelReady
+                : `${props.cooldownLabel} left`}
+            </span>
+            <span className="canvas-cooldown-label">
+              {isReady ? CANVAS_COPY.actions.placePixelReady : `${CANVAS_COPY.paint.cooldownPrefix} ${props.cooldownLabel}`}
+            </span>
           </div>
 
           <div className="canvas-palette-grid is-mobile">
@@ -53,7 +101,7 @@ function CanvasMobilePaintTray(props: CanvasMobilePaintTrayProps): JSX.Element {
                   className={`canvas-palette-swatch ${selectedHex === hex ? "is-active" : ""}`}
                   style={{ backgroundColor: hex }}
                   onClick={() => props.onPresetClick(color)}
-                  aria-label={`색상 ${hex}`}
+                  aria-label={`color ${hex}`}
                 />
               );
             })}
@@ -66,7 +114,7 @@ function CanvasMobilePaintTray(props: CanvasMobilePaintTrayProps): JSX.Element {
             <span style={{ width: props.placementProgress }} />
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

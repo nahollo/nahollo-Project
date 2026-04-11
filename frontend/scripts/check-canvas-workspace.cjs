@@ -138,7 +138,8 @@ function createCurrentState() {
     pixels: basePixels,
     serverNow: "2026-04-10T12:00:00Z",
     liveStatus: "LIVE",
-    placedCount: 18291
+    placedCount: 18291,
+    latestEventId: 18291
   };
 }
 
@@ -187,6 +188,17 @@ async function mockApis(page) {
     });
   });
 
+  await page.route(/http:\/\/127\.0\.0\.1:18080\/api\/canvas\/updates(\?.*)?$/, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        latestEventId: 12,
+        updates: []
+      })
+    });
+  });
+
   await page.route("http://127.0.0.1:18080/api/canvas/pixel", async (route) => {
     const body = JSON.parse(route.request().postData() || "{}");
     await route.fulfill({
@@ -195,10 +207,11 @@ async function mockApis(page) {
       body: JSON.stringify({
         success: true,
         code: "OK",
-        remainingSeconds: 300,
-        nextPlaceAt: "2026-04-10T12:05:00Z",
+        remainingSeconds: 30,
+        nextPlaceAt: "2026-04-10T12:00:30Z",
         serverNow: "2026-04-10T12:00:00Z",
         update: {
+          eventId: 13,
           type: "pixel_updated",
           seasonCode: "2026-04",
           x: body.x ?? 0,
@@ -234,6 +247,7 @@ async function mockWebSocket(page) {
             if (typeof this.onmessage === "function") {
               this.onmessage({
                 data: JSON.stringify({
+                  eventId: 14,
                   type: "pixel_updated",
                   seasonCode: "2026-04",
                   x: 18,
@@ -324,21 +338,20 @@ async function interact(page, round) {
 
   if (round.mode === "desktop") {
     const paintTrigger = page.locator(".canvas-paint-dock-trigger").first();
-    await paintTrigger.click();
-    await page.waitForTimeout(120);
-    await paintTrigger.click();
-    await page.waitForTimeout(120);
-    await paintTrigger.click();
-    await page.waitForTimeout(120);
+    if (await paintTrigger.count()) {
+      await paintTrigger.click();
+      await page.waitForTimeout(120);
+      await paintTrigger.click();
+      await page.waitForTimeout(120);
+      await paintTrigger.click();
+      await page.waitForTimeout(120);
+    }
 
     const customTrigger = page.locator(".canvas-custom-trigger").first();
     if (await customTrigger.count()) {
       await customTrigger.click();
       await page.waitForTimeout(150);
-      const closeButton = page.locator('.canvas-color-popover .canvas-close-button').first();
-      if (await closeButton.count()) {
-        await closeButton.click();
-      }
+      await page.keyboard.press("Escape");
     }
 
     const historyButton = page.locator(".canvas-history-pill").first();
@@ -377,10 +390,7 @@ async function interact(page, round) {
       if (await customTrigger.count()) {
         await customTrigger.tap();
         await page.waitForTimeout(180);
-        const closeButton = page.locator(".canvas-mobile-color-sheet .canvas-close-button").first();
-        if (await closeButton.count()) {
-          await closeButton.tap();
-        }
+        await page.keyboard.press("Escape");
       }
     }
   }

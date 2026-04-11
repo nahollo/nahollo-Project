@@ -16,9 +16,11 @@ export interface CanvasStateResponse {
   readonly serverNow: string;
   readonly liveStatus: string;
   readonly placedCount: number;
+  readonly latestEventId: number;
 }
 
 export interface CanvasPixelUpdate {
+  readonly eventId: number;
   readonly type: string;
   readonly seasonCode: string;
   readonly x: number;
@@ -81,6 +83,11 @@ export interface CanvasHistoryDetailResponse {
   readonly dominantColors: readonly number[];
   readonly timelapseUrl: string | null;
   readonly pixels: readonly number[];
+}
+
+export interface CanvasUpdatesResponse {
+  readonly latestEventId: number;
+  readonly updates: readonly CanvasPixelUpdate[];
 }
 
 export class ApiError<TData = unknown> extends Error {
@@ -190,6 +197,12 @@ export function fetchCanvasHistoryDetail(seasonCode: string): Promise<CanvasHist
 
 export function fetchCanvasPixelMeta(x: number, y: number): Promise<CanvasPixelMetaResponse> {
   return requestJson<CanvasPixelMetaResponse>(`/api/canvas/pixel-meta?x=${x}&y=${y}`);
+}
+
+export function fetchCanvasUpdates(sinceEventId: number, limit = 200): Promise<CanvasUpdatesResponse> {
+  return requestJson<CanvasUpdatesResponse>(
+    `/api/canvas/updates?sinceEventId=${encodeURIComponent(String(sinceEventId))}&limit=${encodeURIComponent(String(limit))}`
+  );
 }
 
 export function placeCanvasPixel(

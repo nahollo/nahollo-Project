@@ -1,9 +1,13 @@
 const fs = require("fs");
+const http = require("http");
 const path = require("path");
 const { chromium, devices } = require("playwright");
 
-const baseUrl = process.env.BASE_URL || "http://127.0.0.1:3000";
+const baseUrlFromEnv = process.env.BASE_URL || "";
+const localPort = Number(process.env.CAPTURE_PORT || 3100);
 const rootDir = path.resolve(__dirname, "..", "..");
+const frontendDir = path.resolve(__dirname, "..");
+const buildDir = path.join(frontendDir, "build");
 const reportDir = path.join(rootDir, "artifacts", "theme-parity");
 const reportPath = path.join(reportDir, "latest.json");
 
@@ -24,19 +28,6 @@ const routes = [
     collections: [".hero-role-chip", ".summary-chip", ".hero-value-card"]
   },
   {
-    name: "about",
-    path: "/about",
-    singles: [
-      ".about-title",
-      ".about-intro-description",
-      ".about-intro-grid",
-      ".about-main-card",
-      ".about-side-panel",
-      ".about-focus-grid"
-    ],
-    collections: [".about-card-label", ".about-focus-card", ".about-side-item", ".about-side-tags span"]
-  },
-  {
     name: "projects",
     path: "/project",
     singles: [
@@ -49,6 +40,19 @@ const routes = [
       ".project-showcase-card"
     ],
     collections: [".project-filter-tab", ".project-card-chip", ".project-action-link"]
+  },
+  {
+    name: "canvas",
+    path: "/canvas",
+    singles: [
+      ".canvas-board-frame",
+      ".canvas-status-bar",
+      ".canvas-history-pill",
+      ".canvas-paint-panel",
+      ".canvas-mobile-top-bar",
+      ".canvas-mobile-paint-tray"
+    ],
+    collections: [".canvas-sidebar-card", ".canvas-palette-swatch", ".canvas-mobile-top-button"]
   },
   {
     name: "resume",
@@ -75,6 +79,45 @@ const viewports = [
     isMobile: true
   }
 ];
+
+function createStaticServer() {
+  const mimeTypes = {
+    ".html": "text/html; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    ".js": "application/javascript; charset=utf-8",
+    ".json": "application/json; charset=utf-8",
+    ".svg": "image/svg+xml",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+    ".ico": "image/x-icon",
+    ".txt": "text/plain; charset=utf-8"
+  };
+
+  return http.createServer((request, response) => {
+    const requestPath = decodeURIComponent((request.url || "/").split("?")[0]);
+    const relativePath = requestPath === "/" ? "/index.html" : requestPath;
+    const resolvedPath = path.normalize(path.join(buildDir, relativePath));
+    const safePath = resolvedPath.startsWith(buildDir) ? resolvedPath : path.join(buildDir, "index.html");
+
+    fs.stat(safePath, (error, stats) => {
+      const targetPath = !error && stats.isFile() ? safePath : path.join(buildDir, "index.html");
+      const extension = path.extname(targetPath).toLowerCase();
+
+      fs.readFile(targetPath, (readError, content) => {
+        if (readError) {
+          response.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
+          response.end(`Static file error: ${readError.message}`);
+          return;
+        }
+
+        response.writeHead(200, { "Content-Type": mimeTypes[extension] || "application/octet-stream" });
+        response.end(content);
+      });
+    });
+  });
+}
 
 function round(value) {
   return Math.round(value * 100) / 100;
@@ -115,20 +158,9 @@ async function waitForStablePage(page) {
 }
 
 async function waitForRouteReady(page, routeName) {
-  if (routeName !== "about") {
-    return;
+  if (routeName === "canvas") {
+    await page.waitForSelector(".canvas-board-frame", { state: "attached", timeout: 20000 });
   }
-
-  await page.waitForFunction(() => {
-    const calendar = document.querySelector(".react-activity-calendar");
-    if (!calendar) {
-      return false;
-    }
-
-    const hasMonthLabels = calendar.querySelectorAll("text").length > 0;
-    const hasErrorMessage = /Unable to fetch contribution data/i.test(document.body.textContent || "");
-    return hasMonthLabels || hasErrorMessage;
-  }, null, { timeout: 20000 });
 }
 
 async function collectMetrics(page, config) {
@@ -268,6 +300,18 @@ function compareMetrics(routeName, viewportName, light, dark) {
 }
 
 async function run() {
+  let server = null;
+  const baseUrl = baseUrlFromEnv || `http://127.0.0.1:${localPort}`;
+
+  if (!baseUrlFromEnv) {
+    if (!fs.existsSync(buildDir)) {
+      throw new Error(`Build directory not found: ${buildDir}. Run "npm run build" first or set BASE_URL.`);
+    }
+
+    server = createStaticServer();
+    await new Promise((resolve) => server.listen(localPort, "127.0.0.1", resolve));
+  }
+
   fs.mkdirSync(reportDir, { recursive: true });
   const browser = await chromium.launch({ headless: true });
   const report = {
@@ -319,6 +363,9 @@ async function run() {
     }
   } finally {
     await browser.close();
+    if (server) {
+      await new Promise((resolve) => server.close(resolve));
+    }
   }
 
   fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ApiError,
   CanvasHistoryDetailResponse,
@@ -11,6 +11,7 @@ import {
   fetchCanvasHistoryDetail,
   fetchCanvasPixelMeta,
   fetchCanvasState,
+  fetchCanvasUpdates,
   placeCanvasPixel,
   resolveWebSocketUrl
 } from "../../lib/api";
@@ -20,6 +21,7 @@ import {
   DEFAULT_SELECTED_COLOR,
   hexToRgb,
   normalizeHex,
+  packRgb,
   RGBColor,
   rgbToHex,
   unpackRgb,
@@ -31,7 +33,7 @@ import CanvasMobileInfoSheet from "./CanvasMobileInfoSheet";
 import CanvasMobilePaintTray from "./CanvasMobilePaintTray";
 import CanvasMobilePixelSheet from "./CanvasMobilePixelSheet";
 import CanvasMobileTopBar from "./CanvasMobileTopBar";
-import CanvasPaintPanel from "./CanvasPaintPanel";
+import CanvasPaintPanel, { PlaceActionState } from "./CanvasPaintPanel";
 import CanvasSidebar from "./CanvasSidebar";
 import { CANVAS_COPY, displayNickname } from "./canvasCopy";
 import "./canvas.css";
@@ -55,19 +57,48 @@ import {
   writeRecentColors
 } from "./canvasUtils";
 
-const COOLDOWN_SECONDS = 300;
+const COOLDOWN_SECONDS = 30;
 const MAX_ZOOM = 24;
+const UPDATE_DEDUP_WINDOW_MS = 15000;
+const UPDATE_SYNC_LIVE_INTERVAL_MS = 12000;
+const UPDATE_SYNC_OFFLINE_INTERVAL_MS = 2500;
+const WS_RECONNECT_MIN_DELAY_MS = 800;
+const WS_RECONNECT_MAX_DELAY_MS = 12000;
 const NICKNAME_STORAGE_KEY = "nahollo-canvas-nickname";
 const MOBILE_BREAKPOINT = "(max-width: 991px)";
+
+function buildUpdateKey(update: CanvasPixelUpdate): string {
+  if (Number.isFinite(update.eventId) && update.eventId > 0) {
+    return `event:${update.eventId}`;
+  }
+
+  return `${update.seasonCode}:${update.x}:${update.y}:${update.color}:${update.paintedAt}:${update.painter ?? ""}`;
+}
+
+function pruneDedupCache(cache: Map<string, number>, now: number): void {
+  cache.forEach((timestamp, key) => {
+    if (now - timestamp > UPDATE_DEDUP_WINDOW_MS) {
+      cache.delete(key);
+    }
+  });
+}
 
 function CanvasPage(): JSX.Element {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const dragRef = useRef<{ startX: number; startY: number; offsetX: number; offsetY: number; moved: boolean } | null>(null);
   const metaCacheRef = useRef<Map<string, CanvasPixelMetaResponse>>(new Map());
+  const dedupUpdateCacheRef = useRef<Map<string, number>>(new Map());
   const stageSizeRef = useRef(0);
   const scaleRef = useRef(1);
+  const boardSizeRef = useRef(CANVAS_SIZE);
   const resizeFrameRef = useRef<number | null>(null);
+  const websocketRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<number | null>(null);
+  const reconnectAttemptRef = useRef(0);
+  const lastEventIdRef = useRef(0);
+  const isUnmountedRef = useRef(false);
+  const syncInFlightRef = useRef(false);
 
   const [state, setState] = useState<CanvasStateResponse | null>(null);
   const [pixels, setPixels] = useState<number[]>(() => createBlankCanvasState(CANVAS_SIZE));
@@ -91,6 +122,7 @@ function CanvasPage(): JSX.Element {
   const [toast, setToast] = useState<ToastState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPlacing, setIsPlacing] = useState(false);
+  const [hasPlaceError, setHasPlaceError] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [isCustomColorOpen, setIsCustomColorOpen] = useState(false);
@@ -103,16 +135,30 @@ function CanvasPage(): JSX.Element {
   const [isMobileLayout, setIsMobileLayout] = useState<boolean>(() =>
     typeof window !== "undefined" ? window.matchMedia(MOBILE_BREAKPOINT).matches : false
   );
+  const placeErrorTimeoutRef = useRef<number | null>(null);
 
   const isTouchMode = useMemo(
     () => (typeof window !== "undefined" ? window.matchMedia("(hover: none), (pointer: coarse)").matches : false),
     []
   );
   const selectedColorHex = useMemo(() => rgbToHex(selectedColor), [selectedColor]);
-  const canPlace = cooldownSeconds <= 0 && !isPlacing;
+  const hasValidSelectedColor =
+    Number.isInteger(selectedColor.red) &&
+    Number.isInteger(selectedColor.green) &&
+    Number.isInteger(selectedColor.blue) &&
+    selectedColor.red >= 0 &&
+    selectedColor.red <= 255 &&
+    selectedColor.green >= 0 &&
+    selectedColor.green <= 255 &&
+    selectedColor.blue >= 0 &&
+    selectedColor.blue <= 255;
+  const isConnectionUnavailable = connectionState === "OFFLINE" || connectionState === "DEGRADED";
+  const placeState: PlaceActionState = isConnectionUnavailable ? "offline" : isPlacing ? "loading" : cooldownSeconds > 0 ? "cooldown" : "ready";
+  const isPlaceDisabled = placeState !== "ready";
   const placementProgress = `${Math.max(0, Math.min(100, ((COOLDOWN_SECONDS - cooldownSeconds) / COOLDOWN_SECONDS) * 100))}%`;
   const connectionLabel = getConnectionStatusLabel(connectionState);
-  const cooldownLabel = canPlace ? CANVAS_COPY.status.ready : `${formatCountdown(cooldownSeconds)} 남음`;
+  const actionCooldownLabel = formatCountdown(Math.max(0, cooldownSeconds));
+  const cooldownLabel = placeState === "ready" ? CANVAS_COPY.status.ready : `${actionCooldownLabel} left`;
   const selectedLabel = selectedPixel ? `(${selectedPixel.x}, ${selectedPixel.y})` : CANVAS_COPY.status.notSelected;
   const selectedColorLabel = selectedMeta ? rgbToHex(unpackRgb(selectedMeta.color)) : selectedColorHex;
   const seasonLabel = formatSeasonCode(state?.season.seasonCode ?? "2026-04");
@@ -120,6 +166,27 @@ function CanvasPage(): JSX.Element {
   useEffect(() => {
     scaleRef.current = scale;
   }, [scale]);
+
+  useEffect(() => {
+    boardSizeRef.current = boardSize;
+  }, [boardSize]);
+
+  useEffect(() => {
+    isUnmountedRef.current = false;
+
+    return () => {
+      isUnmountedRef.current = true;
+      if (placeErrorTimeoutRef.current !== null) {
+        window.clearTimeout(placeErrorTimeoutRef.current);
+      }
+      if (reconnectTimeoutRef.current !== null) {
+        window.clearTimeout(reconnectTimeoutRef.current);
+      }
+      if (websocketRef.current && websocketRef.current.readyState <= WebSocket.OPEN) {
+        websocketRef.current.close();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -220,6 +287,10 @@ function CanvasPage(): JSX.Element {
         setPlacedCount(stateResult.value.placedCount);
         setPixels(normalized.pixels);
         setBoardSize(normalized.size);
+        const latestEventId = Number.isFinite(stateResult.value.latestEventId)
+          ? stateResult.value.latestEventId
+          : stateResult.value.placedCount;
+        lastEventIdRef.current = Math.max(lastEventIdRef.current, latestEventId);
         setStatusMessage(CANVAS_COPY.status.liveDescription);
       } else {
         setToast({ tone: "error", text: CANVAS_COPY.toast.boardLoadError });
@@ -242,31 +313,151 @@ function CanvasPage(): JSX.Element {
     };
   }, []);
 
+  const applyIncomingUpdate = useCallback((update: CanvasPixelUpdate): boolean => {
+    if (update.eventId > 0 && update.eventId <= lastEventIdRef.current) {
+      return false;
+    }
+
+    const now = Date.now();
+    const dedupKey = buildUpdateKey(update);
+    pruneDedupCache(dedupUpdateCacheRef.current, now);
+
+    if (dedupUpdateCacheRef.current.has(dedupKey)) {
+      return false;
+    }
+
+    dedupUpdateCacheRef.current.set(dedupKey, now);
+    if (update.eventId > 0) {
+      lastEventIdRef.current = Math.max(lastEventIdRef.current, update.eventId);
+    }
+
+    setPixels((previous) => applyPixelUpdate(previous, boardSizeRef.current, update));
+    setPlacedCount((previous) => previous + 1);
+    setRecentActivity((previous) => pushActivity(previous, update));
+    cacheMeta(metaCacheRef.current, {
+      x: update.x,
+      y: update.y,
+      nickname: update.painter ?? CANVAS_COPY.tooltip.anonymous,
+      color: update.color,
+      placedAt: update.paintedAt,
+      overwrittenCount: update.overwrittenCount
+    });
+
+    return true;
+  }, []);
+
+  const syncMissedUpdates = useCallback(async () => {
+    if (syncInFlightRef.current || isUnmountedRef.current) {
+      return;
+    }
+
+    syncInFlightRef.current = true;
+    try {
+      const response = await fetchCanvasUpdates(lastEventIdRef.current, 200);
+      response.updates.forEach((update) => applyIncomingUpdate(update));
+      lastEventIdRef.current = Math.max(lastEventIdRef.current, response.latestEventId);
+    } catch (error) {
+      if (!isUnmountedRef.current) {
+        setConnectionState((previous) => (previous === "LIVE" ? "DEGRADED" : previous));
+      }
+    } finally {
+      syncInFlightRef.current = false;
+    }
+  }, [applyIncomingUpdate]);
+
   useEffect(() => {
-    const socket = new WebSocket(resolveWebSocketUrl("/ws/canvas"));
-    socket.onopen = () => setConnectionState("LIVE");
-    socket.onerror = () => setConnectionState("DEGRADED");
-    socket.onclose = () => setConnectionState("OFFLINE");
-    socket.onmessage = (event) => {
-      try {
-        const update = JSON.parse(event.data) as CanvasPixelUpdate;
-        setPixels((previous) => applyPixelUpdate(previous, boardSize, update));
-        setPlacedCount((previous) => previous + 1);
-        setRecentActivity((previous) => pushActivity(previous, update));
-        cacheMeta(metaCacheRef.current, {
-          x: update.x,
-          y: update.y,
-          nickname: update.painter ?? CANVAS_COPY.tooltip.anonymous,
-          color: update.color,
-          placedAt: update.paintedAt,
-          overwrittenCount: update.overwrittenCount
-        });
-      } catch (error) {
+    let disposed = false;
+
+    const scheduleReconnect = () => {
+      if (disposed || isUnmountedRef.current) {
+        return;
+      }
+
+      if (reconnectTimeoutRef.current !== null) {
+        window.clearTimeout(reconnectTimeoutRef.current);
+      }
+
+      const attempt = reconnectAttemptRef.current;
+      const exponentialDelay = Math.min(
+        WS_RECONNECT_MAX_DELAY_MS,
+        WS_RECONNECT_MIN_DELAY_MS * Math.pow(2, Math.min(6, attempt))
+      );
+      const jitter = Math.floor(Math.random() * 250);
+      reconnectTimeoutRef.current = window.setTimeout(connect, exponentialDelay + jitter);
+      reconnectAttemptRef.current += 1;
+    };
+
+    const connect = () => {
+      if (disposed || isUnmountedRef.current) {
+        return;
+      }
+
+      setConnectionState("CONNECTING");
+      const socket = new WebSocket(resolveWebSocketUrl("/ws/canvas"));
+      websocketRef.current = socket;
+
+      socket.onopen = () => {
+        if (disposed || isUnmountedRef.current) {
+          socket.close();
+          return;
+        }
+
+        reconnectAttemptRef.current = 0;
+        setConnectionState("LIVE");
+        void syncMissedUpdates();
+      };
+
+      socket.onmessage = (event) => {
+        try {
+          const update = JSON.parse(event.data) as CanvasPixelUpdate;
+          applyIncomingUpdate(update);
+        } catch (error) {
+          setConnectionState("DEGRADED");
+        }
+      };
+
+      socket.onerror = () => {
         setConnectionState("DEGRADED");
+        if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+          socket.close();
+        }
+      };
+
+      socket.onclose = () => {
+        if (websocketRef.current === socket) {
+          websocketRef.current = null;
+        }
+        if (disposed || isUnmountedRef.current) {
+          return;
+        }
+        setConnectionState("OFFLINE");
+        scheduleReconnect();
+      };
+    };
+
+    connect();
+
+    return () => {
+      disposed = true;
+      if (reconnectTimeoutRef.current !== null) {
+        window.clearTimeout(reconnectTimeoutRef.current);
+      }
+      const socket = websocketRef.current;
+      websocketRef.current = null;
+      if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+        socket.close();
       }
     };
-    return () => socket.close();
-  }, [boardSize]);
+  }, [applyIncomingUpdate, syncMissedUpdates]);
+
+  useEffect(() => {
+    const interval = window.setInterval(
+      () => void syncMissedUpdates(),
+      connectionState === "LIVE" ? UPDATE_SYNC_LIVE_INTERVAL_MS : UPDATE_SYNC_OFFLINE_INTERVAL_MS
+    );
+
+    return () => window.clearInterval(interval);
+  }, [connectionState, syncMissedUpdates]);
 
   useEffect(() => {
     if (cooldownSeconds <= 0) {
@@ -397,30 +588,87 @@ function CanvasPage(): JSX.Element {
     return x >= 0 && y >= 0 && x < boardSize && y < boardSize ? { x, y } : null;
   };
 
+  const triggerPlaceError = (text: string) => {
+    setToast({ tone: "error", text });
+    if (placeErrorTimeoutRef.current !== null) {
+      window.clearTimeout(placeErrorTimeoutRef.current);
+    }
+    setHasPlaceError(true);
+    placeErrorTimeoutRef.current = window.setTimeout(() => {
+      setHasPlaceError(false);
+      placeErrorTimeoutRef.current = null;
+    }, 420);
+  };
+
   const handlePlace = async () => {
-    if (!selectedPixel || !canPlace) {
+    if (placeState !== "ready") {
+      if (placeState === "offline") {
+        triggerPlaceError(CANVAS_COPY.toast.connectionLost);
+      }
       return;
     }
 
+    if (!selectedPixel) {
+      triggerPlaceError(CANVAS_COPY.toast.selectPixelFirst);
+      return;
+    }
+
+    if (!hasValidSelectedColor) {
+      triggerPlaceError(CANVAS_COPY.toast.selectColorFirst);
+      return;
+    }
+
+    if (isTouchMode && typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+      navigator.vibrate(15);
+    }
+
+    const pixelIndex = selectedPixel.y * boardSize + selectedPixel.x;
+    const optimisticColor = packRgb(selectedColor);
+    const previousColor = pixelIndex >= 0 && pixelIndex < pixels.length ? pixels[pixelIndex] : null;
+    const shouldApplyOptimistic = previousColor !== null && previousColor !== optimisticColor;
+
+    if (shouldApplyOptimistic) {
+      setPixels((previous) => {
+        if (pixelIndex < 0 || pixelIndex >= previous.length) {
+          return previous;
+        }
+        if (previous[pixelIndex] === optimisticColor) {
+          return previous;
+        }
+        const next = [...previous];
+        next[pixelIndex] = optimisticColor;
+        return next;
+      });
+    }
+
+    if (placeErrorTimeoutRef.current !== null) {
+      window.clearTimeout(placeErrorTimeoutRef.current);
+      placeErrorTimeoutRef.current = null;
+    }
+    setHasPlaceError(false);
     setIsPlacing(true);
     try {
       const result = await placeCanvasPixel(selectedPixel.x, selectedPixel.y, selectedColor, nickname);
       if (result.update) {
-        setPixels((previous) => applyPixelUpdate(previous, boardSize, result.update));
-        setPlacedCount((previous) => previous + 1);
-        setRecentActivity((previous) => pushActivity(previous, result.update));
-        cacheMeta(metaCacheRef.current, {
-          x: result.update.x,
-          y: result.update.y,
-          nickname: result.update.painter ?? CANVAS_COPY.tooltip.anonymous,
-          color: result.update.color,
-          placedAt: result.update.paintedAt,
-          overwrittenCount: result.update.overwrittenCount
-        });
+        applyIncomingUpdate(result.update);
       }
       setCooldownSeconds(result.remainingSeconds);
       setToast({ tone: "success", text: CANVAS_COPY.toast.placeSuccess });
     } catch (error) {
+      if (shouldApplyOptimistic && previousColor !== null) {
+        setPixels((previous) => {
+          if (pixelIndex < 0 || pixelIndex >= previous.length) {
+            return previous;
+          }
+          if (previous[pixelIndex] !== optimisticColor) {
+            return previous;
+          }
+          const next = [...previous];
+          next[pixelIndex] = previousColor;
+          return next;
+        });
+      }
+
       if (error instanceof ApiError && error.status === 429) {
         const remaining =
           typeof error.data === "object" && error.data && "remainingSeconds" in error.data
@@ -429,7 +677,13 @@ function CanvasPage(): JSX.Element {
 
         setCooldownSeconds(remaining);
       }
-      setToast({ tone: "error", text: CANVAS_COPY.toast.placeError });
+
+      if (error instanceof ApiError && error.status >= 500) {
+        setConnectionState("DEGRADED");
+        triggerPlaceError(CANVAS_COPY.toast.connectionLost);
+      } else {
+        triggerPlaceError(CANVAS_COPY.toast.placeError);
+      }
     } finally {
       setIsPlacing(false);
     }
@@ -438,8 +692,37 @@ function CanvasPage(): JSX.Element {
   const handleStageWheel = (event: React.WheelEvent<HTMLDivElement>) => {
     event.preventDefault();
     const nextScale = Math.max(1, Math.min(MAX_ZOOM, scale * (event.deltaY > 0 ? 0.92 : 1.08)));
+
+    if (nextScale === scale || stageSizeRef.current <= 0) {
+      return;
+    }
+
+    const stageRect = stageRef.current?.getBoundingClientRect();
+    if (!stageRect) {
+      setScale(nextScale);
+      setOffset((previous) => clampOffset(previous, nextScale, stageSizeRef.current));
+      return;
+    }
+
+    const size = stageSizeRef.current;
+    const localX = event.clientX - stageRect.left;
+    const localY = event.clientY - stageRect.top;
+    const originX = size / 2 + offset.x - (size * scale) / 2;
+    const originY = size / 2 + offset.y - (size * scale) / 2;
+    const canvasX = (localX - originX) / scale;
+    const canvasY = (localY - originY) / scale;
+
+    const nextOffset = clampOffset(
+      {
+        x: localX - size / 2 + (size * nextScale) / 2 - canvasX * nextScale,
+        y: localY - size / 2 + (size * nextScale) / 2 - canvasY * nextScale
+      },
+      nextScale,
+      size
+    );
+
     setScale(nextScale);
-    setOffset((previous) => clampOffset(previous, nextScale, stageSizeRef.current));
+    setOffset(nextOffset);
   };
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -511,6 +794,8 @@ function CanvasPage(): JSX.Element {
 
   const hoveredBounds = computeBounds(hoveredPixel);
   const selectedBounds = computeBounds(selectedPixel);
+  const hoverOutlineWidth = Math.max(1, Math.min(2, 1.6 / Math.sqrt(scale)));
+  const selectedOutlineWidth = Math.max(1.5, Math.min(2.8, 2.4 / Math.sqrt(scale)));
   const activeMeta = isTouchMode ? selectedMeta : hoveredMeta;
   const stageRect = stageRef.current?.getBoundingClientRect();
 
@@ -555,16 +840,32 @@ function CanvasPage(): JSX.Element {
                   style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})` }}
                 />
                 {scale >= 8 && (
-                  <div className="canvas-grid-overlay" style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})` }} />
+                  <div
+                    className="canvas-grid-overlay"
+                    style={
+                      {
+                        transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
+                        ["--canvas-grid-divisions" as any]: String(boardSize)
+                      } as React.CSSProperties
+                    }
+                  />
                 )}
-                {hoveredBounds && !isTouchMode && <span className="canvas-hover-outline" style={hoveredBounds} aria-hidden="true" />}
-                {selectedBounds && <span className="canvas-selected-outline" style={selectedBounds} aria-hidden="true" />}
+                {hoveredBounds && !isTouchMode && (
+                  <span className="canvas-hover-outline" style={{ ...hoveredBounds, borderWidth: hoverOutlineWidth }} aria-hidden="true" />
+                )}
+                {selectedBounds && (
+                  <span className="canvas-selected-outline" style={{ ...selectedBounds, borderWidth: selectedOutlineWidth }} aria-hidden="true" />
+                )}
               </div>
             </div>
 
             <div className="canvas-status-bar">
-              <span>{CANVAS_COPY.status.hover}: {hoveredPixel ? `(${hoveredPixel.x}, ${hoveredPixel.y})` : "—"}</span>
-              <span>{CANVAS_COPY.status.selected}: {selectedPixel ? `(${selectedPixel.x}, ${selectedPixel.y})` : "—"}</span>
+              <span>
+                {CANVAS_COPY.status.hover}: {hoveredPixel ? `(${hoveredPixel.x}, ${hoveredPixel.y})` : CANVAS_COPY.status.notSelected}
+              </span>
+              <span>
+                {CANVAS_COPY.status.selected}: {selectedPixel ? `(${selectedPixel.x}, ${selectedPixel.y})` : CANVAS_COPY.status.notSelected}
+              </span>
               <span>{CANVAS_COPY.status.zoom}: {Math.round(scale * 100)}%</span>
               <span>{CANVAS_COPY.status.placedPixels}: {placedCount}</span>
             </div>
@@ -603,11 +904,12 @@ function CanvasPage(): JSX.Element {
                 customColorDraft={customColorDraft}
                 recentColors={recentColors}
                 isExpanded={isPaintExpanded}
-                canPlace={canPlace}
-                isPlacing={isPlacing}
-                cooldownLabel={formatCountdown(cooldownSeconds)}
+                cooldownLabel={actionCooldownLabel}
                 placementProgress={placementProgress}
                 isCustomColorOpen={isCustomColorOpen}
+                placeState={placeState}
+                isPlaceDisabled={isPlaceDisabled}
+                hasPlaceError={hasPlaceError}
                 onToggleExpanded={() => setIsPaintExpanded((previous) => !previous)}
                 onPlace={handlePlace}
                 onPresetClick={setSelectedColor}
@@ -645,10 +947,11 @@ function CanvasPage(): JSX.Element {
               <CanvasMobilePaintTray
                 selectedColor={selectedColor}
                 isExpanded={isPaintExpanded}
-                canPlace={canPlace}
-                isPlacing={isPlacing}
-                cooldownLabel={formatCountdown(cooldownSeconds)}
+                cooldownLabel={actionCooldownLabel}
                 placementProgress={placementProgress}
+                placeState={placeState}
+                isPlaceDisabled={isPlaceDisabled}
+                hasPlaceError={hasPlaceError}
                 onToggleExpanded={() => setIsPaintExpanded((previous) => !previous)}
                 onPlace={handlePlace}
                 onPresetClick={setSelectedColor}
@@ -732,3 +1035,4 @@ function CanvasPage(): JSX.Element {
 }
 
 export default CanvasPage;
+

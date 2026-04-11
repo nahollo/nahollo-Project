@@ -49,7 +49,7 @@ export function formatCountdown(seconds: number): string {
 
 export function formatTimestamp(value: string | null): string {
   if (!value) {
-    return "아직 배치되지 않음";
+    return "Not painted yet";
   }
 
   return new Intl.DateTimeFormat("ko-KR", {
@@ -63,20 +63,20 @@ export function formatTimestamp(value: string | null): string {
 
 export function formatRelativeTime(value: string | null): string {
   if (!value) {
-    return "방금 시작된 보드";
+    return "Fresh canvas";
   }
 
   const seconds = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 1000));
   if (seconds < 60) {
-    return `${seconds}초 전`;
+    return `${seconds}s ago`;
   }
   if (seconds < 3600) {
-    return `${Math.floor(seconds / 60)}분 전`;
+    return `${Math.floor(seconds / 60)}m ago`;
   }
   if (seconds < 86400) {
-    return `${Math.floor(seconds / 3600)}시간 전`;
+    return `${Math.floor(seconds / 3600)}h ago`;
   }
-  return `${Math.floor(seconds / 86400)}일 전`;
+  return `${Math.floor(seconds / 86400)}d ago`;
 }
 
 export function applyPixelUpdate(previous: readonly number[], size: number, update: CanvasPixelUpdate): number[] {
@@ -100,10 +100,15 @@ export function clampOffset(offset: OffsetPoint, scale: number, stageSize: numbe
 }
 
 export function pushActivity(previous: readonly ActivityItem[], update: CanvasPixelUpdate): ActivityItem[] {
+  const id =
+    Number.isFinite(update.eventId) && update.eventId > 0
+      ? `event-${update.eventId}`
+      : `${update.seasonCode}-${update.x}-${update.y}-${update.paintedAt}`;
+
   return [
     {
-      id: `${update.seasonCode}-${update.x}-${update.y}-${update.paintedAt}`,
-      text: `${displayNickname(update.painter)} 님이 (${update.x}, ${update.y})에 배치했습니다.`
+      id,
+      text: `${displayNickname(update.painter)} painted (${update.x}, ${update.y}).`
     },
     ...previous
   ].slice(0, 3);
@@ -159,3 +164,4 @@ export function getConnectionStatusLabel(status: "CONNECTING" | "LIVE" | "DEGRAD
       return CANVAS_COPY.status.connecting;
   }
 }
+
