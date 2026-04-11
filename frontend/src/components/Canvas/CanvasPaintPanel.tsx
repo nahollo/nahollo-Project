@@ -1,5 +1,5 @@
-import React from "react";
-import { FIXED_CANVAS_PALETTE, RGBColor, rgbToHex } from "../../data/canvas";
+import React, { useEffect, useState } from "react";
+import { BASIC_PICKER_PALETTE, FIXED_CANVAS_PALETTE, RGBColor, rgbToHex } from "../../data/canvas";
 import { CANVAS_COPY } from "./canvasCopy";
 
 export type PlaceActionState = "ready" | "loading" | "cooldown" | "offline";
@@ -23,11 +23,13 @@ interface CanvasPaintPanelProps {
   readonly onCustomHexChange: (value: string) => void;
   readonly onCustomPickerChange: (value: string) => void;
   readonly onCustomChannelChange: (channel: keyof RGBColor, value: number) => void;
+  readonly isEyedropperAvailable: boolean;
+  readonly onPickEyedropper: () => void;
   readonly onApplyCustom: () => void;
   readonly onPickRecent: (color: RGBColor) => void;
 }
 
-function resolvePlaceLabel(placeState: PlaceActionState, cooldownLabel: string): string {
+function resolveActionLabel(placeState: PlaceActionState, cooldownLabel: string): string {
   if (placeState === "loading") {
     return CANVAS_COPY.actions.placing;
   }
@@ -43,55 +45,40 @@ function resolvePlaceLabel(placeState: PlaceActionState, cooldownLabel: string):
 function CanvasPaintPanel(props: CanvasPaintPanelProps): JSX.Element {
   const selectedHex = rgbToHex(props.selectedColor);
   const customHex = rgbToHex(props.customColorDraft);
-  const placeLabel = resolvePlaceLabel(props.placeState, props.cooldownLabel);
+  const actionLabel = resolveActionLabel(props.placeState, props.cooldownLabel);
   const isReady = props.placeState === "ready";
+  const openCustomPicker = () => {
+    props.onToggleCustom();
+  };
+  const [hexInput, setHexInput] = useState(customHex);
+  const [pickerTab, setPickerTab] = useState<"custom" | "palette">("custom");
+
+  useEffect(() => {
+    setHexInput(customHex);
+  }, [customHex, props.isCustomColorOpen]);
+
+  useEffect(() => {
+    if (props.isCustomColorOpen) {
+      setPickerTab("custom");
+    }
+  }, [props.isCustomColorOpen]);
 
   return (
     <div className={`canvas-paint-panel ${props.isExpanded ? "is-expanded" : "is-collapsed"}`}>
-      <button type="button" className="canvas-paint-dock-trigger" onClick={props.onToggleExpanded} aria-expanded={props.isExpanded}>
-        <span className="canvas-color-swatch" style={{ backgroundColor: selectedHex }} aria-hidden="true" />
-        <div className="canvas-paint-copy">
-          <strong className="canvas-paint-title">{CANVAS_COPY.chips.paint}</strong>
-          <span className="canvas-paint-hex">{selectedHex}</span>
-        </div>
-        <span className={`canvas-paint-trigger-state is-${props.placeState}`}>
-          {props.placeState === "offline" ? `! ${CANVAS_COPY.status.offline}` : isReady ? CANVAS_COPY.actions.placePixelReady : placeLabel}
-        </span>
-        <span className={`canvas-expand-caret ${props.isExpanded ? "is-open" : "is-closed"}`} aria-hidden="true">
-          ^
-        </span>
-      </button>
-
       <div className={`canvas-paint-expandable ${props.isExpanded ? "is-open" : "is-closed"}`} aria-hidden={!props.isExpanded}>
         <div className="canvas-paint-expandable-inner">
-          <div className="canvas-paint-top">
-            <span className="canvas-color-swatch is-large" style={{ backgroundColor: selectedHex }} aria-hidden="true" />
-            <div className="canvas-paint-copy">
-              <strong className="canvas-paint-title">{CANVAS_COPY.chips.paint}</strong>
-              <span className="canvas-paint-hex">{selectedHex}</span>
-            </div>
+          <div className="canvas-paint-popup-header">
             <button
               type="button"
-              className={`canvas-place-button is-${props.placeState} ${props.hasPlaceError ? "is-error" : ""}`}
-              onClick={props.onPlace}
-              disabled={props.isPlaceDisabled}
-              aria-busy={props.placeState === "loading"}
+              className="canvas-current-color-trigger"
+              onClick={openCustomPicker}
+              aria-label={CANVAS_COPY.actions.openColorPicker}
             >
-              {props.placeState === "loading" ? (
-                <>
-                  <span className="canvas-loading-dots" aria-hidden="true">
-                    <span />
-                    <span />
-                    <span />
-                  </span>
-                  <span>{CANVAS_COPY.actions.placing}</span>
-                </>
-              ) : (
-                <>
-                  <span className="canvas-place-indicator" style={{ backgroundColor: selectedHex }} aria-hidden="true" />
-                  <span>{placeLabel}</span>
-                </>
-              )}
+              <span className="canvas-current-color-swatch" style={{ backgroundColor: selectedHex }} aria-hidden="true" />
+              <span>{selectedHex}</span>
+            </button>
+            <button type="button" className="canvas-close-button" onClick={props.onToggleExpanded} aria-label={CANVAS_COPY.actions.closePaint}>
+              x
             </button>
           </div>
 
@@ -111,7 +98,7 @@ function CanvasPaintPanel(props: CanvasPaintPanelProps): JSX.Element {
                 );
               })}
 
-              <button type="button" className="canvas-custom-trigger" onClick={props.onToggleCustom} aria-label={CANVAS_COPY.actions.openColorPicker}>
+              <button type="button" className="canvas-custom-trigger" onClick={openCustomPicker} aria-label={CANVAS_COPY.actions.openColorPicker}>
                 <span>+</span>
               </button>
             </div>
@@ -126,94 +113,186 @@ function CanvasPaintPanel(props: CanvasPaintPanelProps): JSX.Element {
             </div>
           </div>
 
-          {props.isExpanded && props.isCustomColorOpen && (
-            <div className="canvas-color-popover">
-              <div className="canvas-popover-header">
-                <div>
-                  <span className="canvas-chip">{CANVAS_COPY.chips.custom}</span>
-                  <strong>{CANVAS_COPY.paint.pickerTitle}</strong>
-                </div>
-                <button type="button" className="canvas-close-button" onClick={props.onCloseCustom} aria-label={CANVAS_COPY.actions.closeColorPicker}>
-                  x
-                </button>
-              </div>
+        </div>
+      </div>
 
-              <div className="canvas-popover-tabs">
-                <span className="is-active">{CANVAS_COPY.paint.pickerTabCustom}</span>
-                <span>{CANVAS_COPY.paint.pickerTabPalette}</span>
-              </div>
+      <button
+        type="button"
+        className={`canvas-paint-launch-button is-${props.placeState} ${props.hasPlaceError ? "is-error" : ""} ${props.isExpanded ? "is-active" : ""}`}
+        onClick={props.isExpanded ? props.onPlace : props.onToggleExpanded}
+        disabled={props.isExpanded ? props.isPlaceDisabled : false}
+        aria-expanded={props.isExpanded}
+        aria-pressed={props.isExpanded}
+        aria-busy={props.isExpanded && props.placeState === "loading"}
+      >
+        {props.isExpanded && props.placeState === "loading" ? (
+          <>
+            <span className="canvas-loading-dots" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </span>
+            <span>{CANVAS_COPY.actions.placing}</span>
+          </>
+        ) : (
+          <>
+            <span className="canvas-place-indicator" style={{ backgroundColor: selectedHex }} aria-hidden="true" />
+            <span>{props.isExpanded ? actionLabel : CANVAS_COPY.actions.placePixelReady}</span>
+          </>
+        )}
+      </button>
 
-              <div className="canvas-custom-preview" style={{ background: customHex }} />
+      {props.isExpanded && props.isCustomColorOpen && (
+        <div className="canvas-color-popover">
+          <div className="canvas-popover-header">
+            <div>
+              <strong>{CANVAS_COPY.paint.pickerGui}</strong>
+            </div>
+            <button type="button" className="canvas-close-button" onClick={props.onCloseCustom} aria-label={CANVAS_COPY.actions.closeColorPicker}>
+              x
+            </button>
+          </div>
 
-              <label className="canvas-color-picker-field">
-                <span>{CANVAS_COPY.paint.pickerGui}</span>
-                <input type="color" value={customHex} onChange={(event) => props.onCustomPickerChange(event.target.value)} />
-              </label>
+          <div className="canvas-popover-tabs">
+            <button
+              type="button"
+              className={pickerTab === "custom" ? "is-active" : ""}
+              onClick={() => setPickerTab("custom")}
+            >
+              {CANVAS_COPY.paint.pickerTabCustom}
+            </button>
+            <button
+              type="button"
+              className={pickerTab === "palette" ? "is-active" : ""}
+              onClick={() => setPickerTab("palette")}
+            >
+              {CANVAS_COPY.paint.pickerTabPalette}
+            </button>
+          </div>
 
-              <label className="canvas-text-field">
-                <span>{CANVAS_COPY.paint.hex}</span>
-                <input type="text" value={customHex} onChange={(event) => props.onCustomHexChange(event.target.value)} />
-              </label>
+          <div className={`canvas-picker-tab-content is-${pickerTab}`}>
+            {pickerTab === "custom" ? (
+              <div className="canvas-picker-tab-panel">
+                <div className="canvas-hex-row">
+                  <label className="canvas-color-button" title={CANVAS_COPY.paint.pickerGui} style={{ backgroundColor: customHex }}>
+                    <input type="color" value={customHex} onChange={(event) => props.onCustomPickerChange(event.target.value)} />
+                  </label>
 
-              <div className="canvas-rgb-fields">
-                {([
-                  ["red", "Red"],
-                  ["green", "Green"],
-                  ["blue", "Blue"]
-                ] as const).map(([channel, label]) => (
-                  <label key={channel} className="canvas-rgb-field">
-                    <span>{label}</span>
+                  <label className="canvas-text-field canvas-hex-field">
+                    <span>{CANVAS_COPY.paint.hex}</span>
                     <input
-                      type="range"
-                      min={0}
-                      max={255}
-                      value={props.customColorDraft[channel]}
-                      onChange={(event) => props.onCustomChannelChange(channel, Number(event.target.value))}
-                    />
-                    <input
-                      type="number"
-                      min={0}
-                      max={255}
-                      value={props.customColorDraft[channel]}
-                      onChange={(event) => props.onCustomChannelChange(channel, Number(event.target.value))}
+                      type="text"
+                      value={hexInput}
+                      onChange={(event) => {
+                        const nextValue = event.target.value;
+                        setHexInput(nextValue);
+                        props.onCustomHexChange(nextValue);
+                      }}
+                      onBlur={() => setHexInput(customHex)}
                     />
                   </label>
+
+                  <button
+                    type="button"
+                    className="canvas-eyedropper-button"
+                    onClick={props.onPickEyedropper}
+                    disabled={!props.isEyedropperAvailable}
+                    aria-label="Pick color from screen"
+                    title={props.isEyedropperAvailable ? "Pick color from screen" : "Eyedropper is not supported"}
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        d="M13.6 3.3a1.5 1.5 0 0 1 2.1 0l5 5a1.5 1.5 0 0 1 0 2.1l-1.9 1.9-2.8-2.8-1.8 1.8 2.8 2.8-5.1 5.1a2.5 2.5 0 0 1-1.1.6l-4.3 1.1a1 1 0 0 1-1.2-1.2l1.1-4.3a2.5 2.5 0 0 1 .6-1.1l5.1-5.1 2.8 2.8 1.8-1.8-2.8-2.8 1.9-1.9Z"
+                        fill="currentColor"
+                      />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="canvas-rgb-fields">
+                  {([
+                    ["red", "Red"],
+                    ["green", "Green"],
+                    ["blue", "Blue"]
+                  ] as const).map(([channel, label]) => (
+                    <label key={channel} className="canvas-rgb-field">
+                      <span>{label}</span>
+                      <input
+                        type="range"
+                        min={0}
+                        max={255}
+                        value={props.customColorDraft[channel]}
+                        onChange={(event) => props.onCustomChannelChange(channel, Number(event.target.value))}
+                      />
+                      <input
+                        type="number"
+                        min={0}
+                        max={255}
+                        value={props.customColorDraft[channel]}
+                        onChange={(event) => props.onCustomChannelChange(channel, Number(event.target.value))}
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="canvas-palette-library">
+                {BASIC_PICKER_PALETTE.map((group) => (
+                  <section key={group.label} className="canvas-palette-group">
+                    <strong className="canvas-palette-group-title">{group.label}</strong>
+                    <div className="canvas-palette-bank">
+                      {group.colors.map((color) => {
+                        const hex = rgbToHex(color);
+                        const active = hex === customHex;
+                        return (
+                          <button
+                            key={`${group.label}-${hex}`}
+                            type="button"
+                            className={`canvas-picker-swatch ${active ? "is-active" : ""}`}
+                            style={{ backgroundColor: hex }}
+                            onClick={() => props.onCustomPickerChange(hex)}
+                            aria-label={`palette color ${hex}`}
+                          />
+                        );
+                      })}
+                    </div>
+                  </section>
                 ))}
               </div>
+            )}
+          </div>
 
-              {props.recentColors.length > 0 && (
-                <div className="canvas-recent-colors">
-                  <span>{CANVAS_COPY.paint.recentColors}</span>
-                  <div>
-                    {props.recentColors.map((color) => {
-                      const hex = rgbToHex(color);
-                      return (
-                        <button
-                          key={hex}
-                          type="button"
-                          className="canvas-recent-swatch"
-                          style={{ backgroundColor: hex }}
-                          onClick={() => props.onPickRecent(color)}
-                          aria-label={`recent color ${hex}`}
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              <div className="canvas-popover-actions">
-                <button type="button" className="canvas-secondary-button" onClick={props.onCloseCustom}>
-                  {CANVAS_COPY.actions.cancel}
-                </button>
-                <button type="button" className="canvas-primary-button" onClick={props.onApplyCustom}>
-                  {CANVAS_COPY.actions.apply}
-                </button>
+          {props.recentColors.length > 0 && (
+            <div className="canvas-recent-colors">
+              <span>{CANVAS_COPY.paint.recentColors}</span>
+              <div>
+                {props.recentColors.map((color) => {
+                  const hex = rgbToHex(color);
+                  return (
+                    <button
+                      key={hex}
+                      type="button"
+                      className="canvas-recent-swatch"
+                      style={{ backgroundColor: hex }}
+                      onClick={() => props.onPickRecent(color)}
+                      aria-label={`recent color ${hex}`}
+                    />
+                  );
+                })}
               </div>
             </div>
           )}
+
+          <div className="canvas-popover-actions">
+            <button type="button" className="canvas-secondary-button" onClick={props.onCloseCustom}>
+              {CANVAS_COPY.actions.cancel}
+            </button>
+            <button type="button" className="canvas-primary-button" onClick={props.onApplyCustom}>
+              {CANVAS_COPY.actions.apply}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

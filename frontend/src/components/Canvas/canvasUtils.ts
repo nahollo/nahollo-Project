@@ -108,10 +108,10 @@ export function pushActivity(previous: readonly ActivityItem[], update: CanvasPi
   return [
     {
       id,
-      text: `${displayNickname(update.painter)} painted (${update.x}, ${update.y}).`
+      text: `${displayNickname(update.painter)} 님이 (${update.x}, ${update.y})에 점을 찍었어요.`
     },
     ...previous
-  ].slice(0, 3);
+  ].slice(0, 8);
 }
 
 export function mergeRecentColor(previous: readonly RGBColor[], nextColor: RGBColor, toHex: (color: RGBColor) => string): RGBColor[] {

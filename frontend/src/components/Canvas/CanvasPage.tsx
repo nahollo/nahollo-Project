@@ -20,7 +20,6 @@ import {
   clampChannel,
   DEFAULT_SELECTED_COLOR,
   hexToRgb,
-  normalizeHex,
   packRgb,
   RGBColor,
   rgbToHex,
@@ -67,6 +66,25 @@ const WS_RECONNECT_MAX_DELAY_MS = 12000;
 const NICKNAME_STORAGE_KEY = "nahollo-canvas-nickname";
 const MOBILE_BREAKPOINT = "(max-width: 991px)";
 
+type EyeDropperOpenResult = {
+  sRGBHex: string;
+};
+
+type EyeDropperLike = {
+  open: () => Promise<EyeDropperOpenResult>;
+};
+
+type EyeDropperConstructor = new () => EyeDropperLike;
+
+function resolveEyeDropper(): EyeDropperConstructor | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const candidate = (window as Window & { EyeDropper?: EyeDropperConstructor }).EyeDropper;
+  return typeof candidate === "function" ? candidate : null;
+}
+
 function buildUpdateKey(update: CanvasPixelUpdate): string {
   if (Number.isFinite(update.eventId) && update.eventId > 0) {
     return `event:${update.eventId}`;
@@ -99,6 +117,7 @@ function CanvasPage(): JSX.Element {
   const lastEventIdRef = useRef(0);
   const isUnmountedRef = useRef(false);
   const syncInFlightRef = useRef(false);
+  const hoverMetaRequestRef = useRef(0);
 
   const [state, setState] = useState<CanvasStateResponse | null>(null);
   const [pixels, setPixels] = useState<number[]>(() => createBlankCanvasState(CANVAS_SIZE));
@@ -135,6 +154,7 @@ function CanvasPage(): JSX.Element {
   const [isMobileLayout, setIsMobileLayout] = useState<boolean>(() =>
     typeof window !== "undefined" ? window.matchMedia(MOBILE_BREAKPOINT).matches : false
   );
+  const [isEyedropperAvailable] = useState<boolean>(() => resolveEyeDropper() !== null);
   const placeErrorTimeoutRef = useRef<number | null>(null);
 
   const isTouchMode = useMemo(
@@ -162,6 +182,51 @@ function CanvasPage(): JSX.Element {
   const selectedLabel = selectedPixel ? `(${selectedPixel.x}, ${selectedPixel.y})` : CANVAS_COPY.status.notSelected;
   const selectedColorLabel = selectedMeta ? rgbToHex(unpackRgb(selectedMeta.color)) : selectedColorHex;
   const seasonLabel = formatSeasonCode(state?.season.seasonCode ?? "2026-04");
+
+  const handlePresetColorPick = useCallback((color: RGBColor) => {
+    setSelectedColor(color);
+    setCustomColorDraft(color);
+  }, []);
+
+  const handleToggleCustomPicker = useCallback(() => {
+    setIsCustomColorOpen((previous) => {
+      const next = !previous;
+      if (next) {
+        setCustomColorDraft(selectedColor);
+      }
+      return next;
+    });
+  }, [selectedColor]);
+
+  const handleCustomHexChange = useCallback((value: string) => {
+    const normalized = value.replace(/[^0-9a-fA-F]/g, "");
+    if (normalized.length !== 3 && normalized.length !== 6) {
+      return;
+    }
+
+    const next = hexToRgb(`#${normalized}`);
+    setCustomColorDraft(next);
+    setSelectedColor(next);
+  }, []);
+
+  const handlePickEyedropper = useCallback(async () => {
+    const EyeDropperCtor = resolveEyeDropper();
+    if (!EyeDropperCtor) {
+      return;
+    }
+
+    try {
+      const picker = new EyeDropperCtor();
+      const result = await picker.open();
+      if (result?.sRGBHex) {
+        const next = hexToRgb(result.sRGBHex);
+        setCustomColorDraft(next);
+        setSelectedColor(next);
+      }
+    } catch (error) {
+      // EyeDropper can throw when canceled. Ignore quietly.
+    }
+  }, []);
 
   useEffect(() => {
     scaleRef.current = scale;
@@ -493,36 +558,46 @@ function CanvasPage(): JSX.Element {
 
   useEffect(() => {
     const target = isTouchMode ? selectedPixel : hoveredPixel;
-    if (!target) {
-      if (!isTouchMode) {
-        setHoveredMeta(null);
+    const requestToken = hoverMetaRequestRef.current + 1;
+    hoverMetaRequestRef.current = requestToken;
+
+    const commitMeta = (meta: CanvasPixelMetaResponse | null) => {
+      if (isTouchMode) {
+        setSelectedMeta(meta);
+      } else {
+        setHoveredMeta(meta);
       }
+    };
+
+    if (!target) {
+      commitMeta(null);
       return;
     }
 
     const cached = metaCacheRef.current.get(`${target.x}:${target.y}`);
     if (cached) {
-      if (isTouchMode) {
-        setSelectedMeta(cached);
-      } else {
-        setHoveredMeta(cached);
-      }
+      commitMeta(cached);
       return;
     }
+
+    commitMeta(null);
 
     const timeout = window.setTimeout(async () => {
       try {
         const meta = await fetchCanvasPixelMeta(target.x, target.y);
+        if (hoverMetaRequestRef.current !== requestToken) {
+          return;
+        }
+        if (meta.x !== target.x || meta.y !== target.y) {
+          return;
+        }
         cacheMeta(metaCacheRef.current, meta);
-        if (isTouchMode) {
-          setSelectedMeta(meta);
-        } else {
-          setHoveredMeta(meta);
-        }
+        commitMeta(meta);
       } catch (error) {
-        if (!isTouchMode) {
-          setHoveredMeta(null);
+        if (hoverMetaRequestRef.current !== requestToken) {
+          return;
         }
+        commitMeta(null);
       }
     }, 120);
 
@@ -580,11 +655,9 @@ function CanvasPage(): JSX.Element {
       return null;
     }
 
-    const canvasLeft = rect.left + stageSize / 2 + offset.x - (stageSize * scale) / 2;
-    const canvasTop = rect.top + stageSize / 2 + offset.y - (stageSize * scale) / 2;
-    const cellSize = (stageSize * scale) / boardSize;
-    const x = Math.floor((clientX - canvasLeft) / cellSize);
-    const y = Math.floor((clientY - canvasTop) / cellSize);
+    const { cellSize, originX, originY } = getCanvasMetrics();
+    const x = Math.floor((clientX - rect.left - originX) / cellSize);
+    const y = Math.floor((clientY - rect.top - originY) / cellSize);
     return x >= 0 && y >= 0 && x < boardSize && y < boardSize ? { x, y } : null;
   };
 
@@ -778,17 +851,44 @@ function CanvasPage(): JSX.Element {
     }
   };
 
+  const getCanvasMetrics = () => {
+    const scaledSize = stageSize * scale;
+    const cellSize = scaledSize / boardSize;
+    const originX = stageSize / 2 + offset.x - scaledSize / 2;
+    const originY = stageSize / 2 + offset.y - scaledSize / 2;
+    return { cellSize, originX, originY };
+  };
+
+  const snapToDevicePixel = (value: number) => {
+    if (typeof window === "undefined") {
+      return value;
+    }
+
+    const ratio = window.devicePixelRatio || 1;
+    return Math.round(value * ratio) / ratio;
+  };
+
   const computeBounds = (point: PixelPoint | null) => {
     if (!point || stageSize <= 0) {
       return undefined;
     }
 
-    const cellSize = (stageSize * scale) / boardSize;
+    const { cellSize, originX, originY } = getCanvasMetrics();
+    const left = originX + point.x * cellSize;
+    const top = originY + point.y * cellSize;
+    const right = left + cellSize;
+    const bottom = top + cellSize;
+    const snappedLeft = snapToDevicePixel(left);
+    const snappedTop = snapToDevicePixel(top);
+    const snappedRight = snapToDevicePixel(right);
+    const snappedBottom = snapToDevicePixel(bottom);
+    const minSize = typeof window === "undefined" ? 1 : 1 / Math.max(1, window.devicePixelRatio || 1);
+
     return {
-      left: stageSize / 2 + offset.x - (stageSize * scale) / 2 + point.x * cellSize,
-      top: stageSize / 2 + offset.y - (stageSize * scale) / 2 + point.y * cellSize,
-      width: cellSize,
-      height: cellSize
+      left: snappedLeft,
+      top: snappedTop,
+      width: Math.max(minSize, snappedRight - snappedLeft),
+      height: Math.max(minSize, snappedBottom - snappedTop)
     };
   };
 
@@ -797,10 +897,27 @@ function CanvasPage(): JSX.Element {
   const hoverOutlineWidth = Math.max(1, Math.min(2, 1.6 / Math.sqrt(scale)));
   const selectedOutlineWidth = Math.max(1.5, Math.min(2.8, 2.4 / Math.sqrt(scale)));
   const activeMeta = isTouchMode ? selectedMeta : hoveredMeta;
+  const tooltipPoint = isTouchMode ? selectedPixel : hoveredPixel;
   const stageRect = stageRef.current?.getBoundingClientRect();
+  const canvasMetrics = stageSize > 0 ? getCanvasMetrics() : null;
+  const fallbackTooltipColor = (() => {
+    if (!tooltipPoint) {
+      return null;
+    }
+
+    const index = tooltipPoint.y * boardSize + tooltipPoint.x;
+    if (index < 0 || index >= pixels.length) {
+      return null;
+    }
+
+    return pixels[index];
+  })();
+  const tooltipColor = activeMeta?.color ?? fallbackTooltipColor ?? packRgb(selectedColor);
+  const tooltipNickname = displayNickname(activeMeta?.nickname);
+  const tooltipPlacedAt = activeMeta?.placedAt ?? null;
 
   const tooltipStyle = (() => {
-    const bounds = computeBounds(isTouchMode ? selectedPixel : hoveredPixel);
+    const bounds = computeBounds(tooltipPoint);
     if (!bounds || !stageRect) {
       return undefined;
     }
@@ -844,8 +961,9 @@ function CanvasPage(): JSX.Element {
                     className="canvas-grid-overlay"
                     style={
                       {
-                        transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
-                        ["--canvas-grid-divisions" as any]: String(boardSize)
+                        ["--canvas-grid-cell-size" as any]: `${canvasMetrics?.cellSize ?? 0}px`,
+                        ["--canvas-grid-offset-x" as any]: `${canvasMetrics?.originX ?? 0}px`,
+                        ["--canvas-grid-offset-y" as any]: `${canvasMetrics?.originY ?? 0}px`
                       } as React.CSSProperties
                     }
                   />
@@ -880,14 +998,9 @@ function CanvasPage(): JSX.Element {
               <CanvasSidebar
                 season={state?.season ?? null}
                 boardSize={boardSize}
-                statusMessage={statusMessage}
-                connectionLabel={connectionLabel}
-                cooldownLabel={cooldownLabel}
-                selectedLabel={selectedLabel}
-                selectedColorLabel={selectedColorLabel}
                 nickname={nickname}
                 onNicknameChange={setNickname}
-                recentActivity={recentActivity.map((item) => item.text)}
+                recentActivity={recentActivity}
               />
             </div>
 
@@ -912,20 +1025,33 @@ function CanvasPage(): JSX.Element {
                 hasPlaceError={hasPlaceError}
                 onToggleExpanded={() => setIsPaintExpanded((previous) => !previous)}
                 onPlace={handlePlace}
-                onPresetClick={setSelectedColor}
-                onToggleCustom={() => setIsCustomColorOpen((previous) => !previous)}
+                onPresetClick={handlePresetColorPick}
+                onToggleCustom={handleToggleCustomPicker}
                 onCloseCustom={() => setIsCustomColorOpen(false)}
-                onCustomHexChange={(value) => setCustomColorDraft(hexToRgb(normalizeHex(value)))}
-                onCustomPickerChange={(value) => setCustomColorDraft(hexToRgb(value))}
+                onCustomHexChange={handleCustomHexChange}
+                onCustomPickerChange={(value) => {
+                  const next = hexToRgb(value);
+                  setCustomColorDraft(next);
+                  setSelectedColor(next);
+                }}
                 onCustomChannelChange={(channel, value) =>
-                  setCustomColorDraft((previous) => ({ ...previous, [channel]: clampChannel(value) }))
+                  setCustomColorDraft((previous) => {
+                    const next = { ...previous, [channel]: clampChannel(value) };
+                    setSelectedColor(next);
+                    return next;
+                  })
                 }
+                isEyedropperAvailable={isEyedropperAvailable}
+                onPickEyedropper={handlePickEyedropper}
                 onApplyCustom={() => {
                   setSelectedColor(customColorDraft);
                   setRecentColors((previous) => mergeRecentColor(previous, customColorDraft, rgbToHex));
                   setIsCustomColorOpen(false);
                 }}
-                onPickRecent={setCustomColorDraft}
+                onPickRecent={(color) => {
+                  setCustomColorDraft(color);
+                  setSelectedColor(color);
+                }}
               />
             </div>
           </>
@@ -954,8 +1080,8 @@ function CanvasPage(): JSX.Element {
                 hasPlaceError={hasPlaceError}
                 onToggleExpanded={() => setIsPaintExpanded((previous) => !previous)}
                 onPlace={handlePlace}
-                onPresetClick={setSelectedColor}
-                onToggleCustom={() => setIsCustomColorOpen((previous) => !previous)}
+                onPresetClick={handlePresetColorPick}
+                onToggleCustom={handleToggleCustomPicker}
               />
             </div>
           </>
@@ -963,13 +1089,13 @@ function CanvasPage(): JSX.Element {
       </div>
 
       <div className="canvas-floating-root">
-        {!isMobileLayout && activeMeta && tooltipStyle && (
+        {!isMobileLayout && tooltipPoint && tooltipStyle && (
           <div className="canvas-tooltip" style={tooltipStyle}>
-            <strong>({activeMeta.x}, {activeMeta.y})</strong>
-            <span>{CANVAS_COPY.tooltip.placedBy} {displayNickname(activeMeta.nickname)}</span>
-            <span>{rgbToHex(unpackRgb(activeMeta.color))}</span>
-            <span>{formatTimestamp(activeMeta.placedAt)}</span>
-            <span>{formatRelativeTime(activeMeta.placedAt)}</span>
+            <strong>({tooltipPoint.x}, {tooltipPoint.y})</strong>
+            <span>{CANVAS_COPY.tooltip.placedBy} {tooltipNickname}</span>
+            <span>{rgbToHex(unpackRgb(tooltipColor))}</span>
+            <span>{formatTimestamp(tooltipPlacedAt)}</span>
+            <span>{formatRelativeTime(tooltipPlacedAt)}</span>
           </div>
         )}
 
@@ -1014,17 +1140,30 @@ function CanvasPage(): JSX.Element {
           customColorDraft={customColorDraft}
           recentColors={recentColors}
           onClose={() => setIsCustomColorOpen(false)}
-          onCustomHexChange={(value) => setCustomColorDraft(hexToRgb(normalizeHex(value)))}
-          onCustomPickerChange={(value) => setCustomColorDraft(hexToRgb(value))}
+          onCustomHexChange={handleCustomHexChange}
+          onCustomPickerChange={(value) => {
+            const next = hexToRgb(value);
+            setCustomColorDraft(next);
+            setSelectedColor(next);
+          }}
           onCustomChannelChange={(channel, value) =>
-            setCustomColorDraft((previous) => ({ ...previous, [channel]: clampChannel(value) }))
+            setCustomColorDraft((previous) => {
+              const next = { ...previous, [channel]: clampChannel(value) };
+              setSelectedColor(next);
+              return next;
+            })
           }
+          isEyedropperAvailable={isEyedropperAvailable}
+          onPickEyedropper={handlePickEyedropper}
           onApply={() => {
             setSelectedColor(customColorDraft);
             setRecentColors((previous) => mergeRecentColor(previous, customColorDraft, rgbToHex));
             setIsCustomColorOpen(false);
           }}
-          onPickRecent={setCustomColorDraft}
+          onPickRecent={(color) => {
+            setCustomColorDraft(color);
+            setSelectedColor(color);
+          }}
         />
 
         {toast && <div className={`canvas-toast is-${toast.tone}`}>{toast.text}</div>}

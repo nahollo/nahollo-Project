@@ -44,7 +44,7 @@ public class CanvasService {
 	private static final int CANVAS_SIZE = 512;
 	private static final int DEFAULT_COLOR = 0xF8F6F0;
 	private static final int THUMBNAIL_SIZE = 64;
-	private static final long COOLDOWN_SECONDS = Duration.ofSeconds(30).getSeconds();
+	private static final long COOLDOWN_SECONDS = Duration.ofSeconds(5).getSeconds();
 	private static final ZoneId SEASON_ZONE = ZoneId.of("Asia/Seoul");
 
 	private final JdbcTemplate jdbcTemplate;

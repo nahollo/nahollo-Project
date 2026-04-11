@@ -1,5 +1,5 @@
-import React from "react";
-import { RGBColor, rgbToHex } from "../../data/canvas";
+import React, { useEffect, useState } from "react";
+import { BASIC_PICKER_PALETTE, RGBColor, rgbToHex } from "../../data/canvas";
 import { CANVAS_COPY } from "./canvasCopy";
 
 interface CanvasMobileColorSheetProps {
@@ -10,16 +10,30 @@ interface CanvasMobileColorSheetProps {
   readonly onCustomHexChange: (value: string) => void;
   readonly onCustomPickerChange: (value: string) => void;
   readonly onCustomChannelChange: (channel: keyof RGBColor, value: number) => void;
+  readonly isEyedropperAvailable: boolean;
+  readonly onPickEyedropper: () => void;
   readonly onApply: () => void;
   readonly onPickRecent: (color: RGBColor) => void;
 }
 
 function CanvasMobileColorSheet(props: CanvasMobileColorSheetProps): JSX.Element | null {
+  const customHex = rgbToHex(props.customColorDraft);
+  const [hexInput, setHexInput] = useState(customHex);
+  const [pickerTab, setPickerTab] = useState<"custom" | "palette">("custom");
+
+  useEffect(() => {
+    setHexInput(customHex);
+  }, [customHex, props.isOpen]);
+
+  useEffect(() => {
+    if (props.isOpen) {
+      setPickerTab("custom");
+    }
+  }, [props.isOpen]);
+
   if (!props.isOpen) {
     return null;
   }
-
-  const customHex = rgbToHex(props.customColorDraft);
 
   return (
     <>
@@ -27,51 +41,121 @@ function CanvasMobileColorSheet(props: CanvasMobileColorSheetProps): JSX.Element
       <section className="canvas-mobile-color-sheet" role="dialog" aria-modal="true">
         <div className="canvas-mobile-sheet-header">
           <div>
-            <span className="canvas-chip">{CANVAS_COPY.chips.custom}</span>
-            <strong>{CANVAS_COPY.paint.pickerTitle}</strong>
+            <strong>{CANVAS_COPY.paint.pickerGui}</strong>
           </div>
           <button type="button" className="canvas-close-button" onClick={props.onClose} aria-label={CANVAS_COPY.actions.closeColorPicker}>
-            ×
+            x
           </button>
         </div>
 
         <div className="canvas-mobile-sheet-body">
-          <div className="canvas-custom-preview" style={{ background: customHex }} />
+          <div className="canvas-popover-tabs is-mobile">
+            <button
+              type="button"
+              className={pickerTab === "custom" ? "is-active" : ""}
+              onClick={() => setPickerTab("custom")}
+            >
+              {CANVAS_COPY.paint.pickerTabCustom}
+            </button>
+            <button
+              type="button"
+              className={pickerTab === "palette" ? "is-active" : ""}
+              onClick={() => setPickerTab("palette")}
+            >
+              {CANVAS_COPY.paint.pickerTabPalette}
+            </button>
+          </div>
 
-          <label className="canvas-color-picker-field">
-            <span>{CANVAS_COPY.paint.pickerGui}</span>
-            <input type="color" value={customHex} onChange={(event) => props.onCustomPickerChange(event.target.value)} />
-          </label>
+          <div className={`canvas-picker-tab-content is-${pickerTab}`}>
+            {pickerTab === "custom" ? (
+              <div className="canvas-picker-tab-panel">
+                <div className="canvas-hex-row">
+                  <label className="canvas-color-button" title={CANVAS_COPY.paint.pickerGui} style={{ backgroundColor: customHex }}>
+                    <input type="color" value={customHex} onChange={(event) => props.onCustomPickerChange(event.target.value)} />
+                  </label>
 
-          <label className="canvas-text-field">
-            <span>{CANVAS_COPY.paint.hex}</span>
-            <input type="text" value={customHex} onChange={(event) => props.onCustomHexChange(event.target.value)} />
-          </label>
+                  <label className="canvas-text-field canvas-hex-field">
+                    <span>{CANVAS_COPY.paint.hex}</span>
+                    <input
+                      type="text"
+                      value={hexInput}
+                      onChange={(event) => {
+                        const nextValue = event.target.value;
+                        setHexInput(nextValue);
+                        props.onCustomHexChange(nextValue);
+                      }}
+                      onBlur={() => setHexInput(customHex)}
+                    />
+                  </label>
 
-          <div className="canvas-rgb-fields">
-            {([
-              ["red", "빨강"],
-              ["green", "초록"],
-              ["blue", "파랑"]
-            ] as const).map(([channel, label]) => (
-              <label key={channel} className="canvas-rgb-field">
-                <span>{label}</span>
-                <input
-                  type="range"
-                  min={0}
-                  max={255}
-                  value={props.customColorDraft[channel]}
-                  onChange={(event) => props.onCustomChannelChange(channel, Number(event.target.value))}
-                />
-                <input
-                  type="number"
-                  min={0}
-                  max={255}
-                  value={props.customColorDraft[channel]}
-                  onChange={(event) => props.onCustomChannelChange(channel, Number(event.target.value))}
-                />
-              </label>
-            ))}
+                  <button
+                    type="button"
+                    className="canvas-eyedropper-button"
+                    onClick={props.onPickEyedropper}
+                    disabled={!props.isEyedropperAvailable}
+                    aria-label="Pick color from screen"
+                    title={props.isEyedropperAvailable ? "Pick color from screen" : "Eyedropper is not supported"}
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        d="M13.6 3.3a1.5 1.5 0 0 1 2.1 0l5 5a1.5 1.5 0 0 1 0 2.1l-1.9 1.9-2.8-2.8-1.8 1.8 2.8 2.8-5.1 5.1a2.5 2.5 0 0 1-1.1.6l-4.3 1.1a1 1 0 0 1-1.2-1.2l1.1-4.3a2.5 2.5 0 0 1 .6-1.1l5.1-5.1 2.8 2.8 1.8-1.8-2.8-2.8 1.9-1.9Z"
+                        fill="currentColor"
+                      />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="canvas-rgb-fields">
+                  {([
+                    ["red", "Red"],
+                    ["green", "Green"],
+                    ["blue", "Blue"]
+                  ] as const).map(([channel, label]) => (
+                    <label key={channel} className="canvas-rgb-field">
+                      <span>{label}</span>
+                      <input
+                        type="range"
+                        min={0}
+                        max={255}
+                        value={props.customColorDraft[channel]}
+                        onChange={(event) => props.onCustomChannelChange(channel, Number(event.target.value))}
+                      />
+                      <input
+                        type="number"
+                        min={0}
+                        max={255}
+                        value={props.customColorDraft[channel]}
+                        onChange={(event) => props.onCustomChannelChange(channel, Number(event.target.value))}
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="canvas-palette-library">
+                {BASIC_PICKER_PALETTE.map((group) => (
+                  <section key={group.label} className="canvas-palette-group">
+                    <strong className="canvas-palette-group-title">{group.label}</strong>
+                    <div className="canvas-palette-bank">
+                      {group.colors.map((color) => {
+                        const hex = rgbToHex(color);
+                        const active = hex === customHex;
+                        return (
+                          <button
+                            key={`${group.label}-${hex}`}
+                            type="button"
+                            className={`canvas-picker-swatch ${active ? "is-active" : ""}`}
+                            style={{ backgroundColor: hex }}
+                            onClick={() => props.onCustomPickerChange(hex)}
+                            aria-label={`palette color ${hex}`}
+                          />
+                        );
+                      })}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            )}
           </div>
 
           {props.recentColors.length > 0 && (
@@ -87,7 +171,7 @@ function CanvasMobileColorSheet(props: CanvasMobileColorSheetProps): JSX.Element
                       className="canvas-recent-swatch"
                       style={{ backgroundColor: hex }}
                       onClick={() => props.onPickRecent(color)}
-                      aria-label={`최근 색상 ${hex}`}
+                      aria-label={`recent color ${hex}`}
                     />
                   );
                 })}

@@ -28,7 +28,7 @@ class CanvasServiceTest {
 
 		assertTrue(response.success());
 		assertEquals("OK", response.code());
-		assertEquals(30, response.remainingSeconds());
+		assertEquals(5, response.remainingSeconds());
 		assertNotNull(response.update());
 		assertEquals((120 << 16) | (45 << 8) | 200, response.update().color());
 

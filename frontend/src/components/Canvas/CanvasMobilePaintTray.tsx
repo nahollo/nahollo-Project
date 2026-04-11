@@ -17,7 +17,7 @@ interface CanvasMobilePaintTrayProps {
   readonly onToggleCustom: () => void;
 }
 
-function resolvePlaceLabel(placeState: PlaceActionState, cooldownLabel: string): string {
+function resolveActionLabel(placeState: PlaceActionState, cooldownLabel: string): string {
   if (placeState === "loading") {
     return CANVAS_COPY.actions.placing;
   }
@@ -32,7 +32,7 @@ function resolvePlaceLabel(placeState: PlaceActionState, cooldownLabel: string):
 
 function CanvasMobilePaintTray(props: CanvasMobilePaintTrayProps): JSX.Element {
   const selectedHex = rgbToHex(props.selectedColor);
-  const placeLabel = resolvePlaceLabel(props.placeState, props.cooldownLabel);
+  const actionLabel = resolveActionLabel(props.placeState, props.cooldownLabel);
   const isReady = props.placeState === "ready";
 
   return (
@@ -44,7 +44,13 @@ function CanvasMobilePaintTray(props: CanvasMobilePaintTrayProps): JSX.Element {
           <span className="canvas-paint-hex">{selectedHex}</span>
         </div>
         <div className="canvas-mobile-paint-actions">
-          <button type="button" className="canvas-mobile-tray-toggle" onClick={props.onToggleExpanded} aria-expanded={props.isExpanded}>
+          <button
+            type="button"
+            className={`canvas-mobile-tray-toggle ${props.isExpanded ? "is-active" : ""}`}
+            onClick={props.onToggleExpanded}
+            aria-expanded={props.isExpanded}
+            aria-pressed={props.isExpanded}
+          >
             <span>{props.isExpanded ? CANVAS_COPY.actions.closePaint : CANVAS_COPY.actions.openPaint}</span>
             <span className={`canvas-expand-caret ${props.isExpanded ? "is-open" : "is-closed"}`} aria-hidden="true">
               ^
@@ -69,7 +75,7 @@ function CanvasMobilePaintTray(props: CanvasMobilePaintTrayProps): JSX.Element {
             ) : (
               <>
                 <span className="canvas-place-indicator" style={{ backgroundColor: selectedHex }} aria-hidden="true" />
-                <span>{placeLabel}</span>
+                <span>{actionLabel}</span>
               </>
             )}
           </button>
@@ -79,12 +85,8 @@ function CanvasMobilePaintTray(props: CanvasMobilePaintTrayProps): JSX.Element {
       <div className={`canvas-mobile-tray-sheet ${props.isExpanded ? "is-open" : "is-closed"}`} aria-hidden={!props.isExpanded}>
         <div className="canvas-mobile-tray-sheet-inner">
           <div className="canvas-mobile-tray-status">
-            <span className={`canvas-paint-trigger-state is-${props.placeState}`}>
-              {props.placeState === "offline"
-                ? `! ${CANVAS_COPY.status.offline}`
-                : isReady
-                ? CANVAS_COPY.actions.placePixelReady
-                : `${props.cooldownLabel} left`}
+            <span className={`canvas-paint-trigger-state is-${props.placeState} ${props.isExpanded ? "is-active" : ""}`}>
+              {actionLabel}
             </span>
             <span className="canvas-cooldown-label">
               {isReady ? CANVAS_COPY.actions.placePixelReady : `${CANVAS_COPY.paint.cooldownPrefix} ${props.cooldownLabel}`}

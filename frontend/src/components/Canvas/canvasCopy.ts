@@ -28,7 +28,7 @@ export const CANVAS_COPY = {
   sidebar: {
     nickname: "닉네임",
     nicknamePlaceholder: "닉네임을 입력해 주세요",
-    rule: "픽셀을 배치하면 30초 동안 다음 픽셀을 배치할 수 없습니다.",
+    rule: "픽셀을 배치하면 5초 동안 다음 픽셀을 배치할 수 없습니다.",
     recentActivity: "최근 활동",
     emptyActivity: "최근 활동이 곧 여기에 표시됩니다."
   },
@@ -39,8 +39,8 @@ export const CANVAS_COPY = {
     openPaint: "열기",
     closePaint: "접기",
     placePixel: "픽셀 배치",
-    placePixelReady: "Paint (1/1)",
-    placing: "배치 중...",
+    placePixelReady: "그리기",
+    placing: "그리는 중...",
     connectionLost: "⚠ 연결 끊김",
     openColorPicker: "직접 색상 선택기 열기",
     closeColorPicker: "색상 선택기 닫기",
