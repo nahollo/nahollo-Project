@@ -27,7 +27,7 @@ function resolveActionLabel(placeState: PlaceActionState, cooldownLabel: string)
   if (placeState === "offline") {
     return CANVAS_COPY.actions.connectionLost;
   }
-  return CANVAS_COPY.actions.placePixelReady;
+  return CANVAS_COPY.actions.placePixel;
 }
 
 function CanvasMobilePaintTray(props: CanvasMobilePaintTrayProps): JSX.Element {
@@ -89,7 +89,7 @@ function CanvasMobilePaintTray(props: CanvasMobilePaintTrayProps): JSX.Element {
               {actionLabel}
             </span>
             <span className="canvas-cooldown-label">
-              {isReady ? CANVAS_COPY.actions.placePixelReady : `${CANVAS_COPY.paint.cooldownPrefix} ${props.cooldownLabel}`}
+              {isReady ? CANVAS_COPY.status.ready : `${CANVAS_COPY.paint.cooldownPrefix} ${props.cooldownLabel}`}
             </span>
           </div>
 
@@ -103,7 +103,7 @@ function CanvasMobilePaintTray(props: CanvasMobilePaintTrayProps): JSX.Element {
                   className={`canvas-palette-swatch ${selectedHex === hex ? "is-active" : ""}`}
                   style={{ backgroundColor: hex }}
                   onClick={() => props.onPresetClick(color)}
-                  aria-label={`color ${hex}`}
+                  aria-label={`색상 ${hex}`}
                 />
               );
             })}

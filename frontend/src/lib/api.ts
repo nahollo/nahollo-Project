@@ -171,7 +171,7 @@ async function requestJson<TResponse>(path: string, init?: RequestInit): Promise
     const message =
       typeof data === "object" && data !== null && "message" in data && typeof data.message === "string"
         ? data.message
-        : `요청에 실패했습니다. (${response.status})`;
+        : `요청이 실패했습니다. (${response.status})`;
 
     throw new ApiError(message, response.status, data);
   }

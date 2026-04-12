@@ -39,7 +39,7 @@ function resolveActionLabel(placeState: PlaceActionState, cooldownLabel: string)
   if (placeState === "offline") {
     return CANVAS_COPY.actions.connectionLost;
   }
-  return CANVAS_COPY.actions.placePixelReady;
+  return CANVAS_COPY.actions.placePixel;
 }
 
 function CanvasPaintPanel(props: CanvasPaintPanelProps): JSX.Element {
@@ -47,9 +47,6 @@ function CanvasPaintPanel(props: CanvasPaintPanelProps): JSX.Element {
   const customHex = rgbToHex(props.customColorDraft);
   const actionLabel = resolveActionLabel(props.placeState, props.cooldownLabel);
   const isReady = props.placeState === "ready";
-  const openCustomPicker = () => {
-    props.onToggleCustom();
-  };
   const [hexInput, setHexInput] = useState(customHex);
   const [pickerTab, setPickerTab] = useState<"custom" | "palette">("custom");
 
@@ -71,14 +68,14 @@ function CanvasPaintPanel(props: CanvasPaintPanelProps): JSX.Element {
             <button
               type="button"
               className="canvas-current-color-trigger"
-              onClick={openCustomPicker}
+              onClick={props.onToggleCustom}
               aria-label={CANVAS_COPY.actions.openColorPicker}
             >
               <span className="canvas-current-color-swatch" style={{ backgroundColor: selectedHex }} aria-hidden="true" />
               <span>{selectedHex}</span>
             </button>
             <button type="button" className="canvas-close-button" onClick={props.onToggleExpanded} aria-label={CANVAS_COPY.actions.closePaint}>
-              x
+              ×
             </button>
           </div>
 
@@ -93,26 +90,25 @@ function CanvasPaintPanel(props: CanvasPaintPanelProps): JSX.Element {
                     className={`canvas-palette-swatch ${selectedHex === hex ? "is-active" : ""}`}
                     style={{ backgroundColor: hex }}
                     onClick={() => props.onPresetClick(color)}
-                    aria-label={`color ${hex}`}
+                    aria-label={`색상 ${hex}`}
                   />
                 );
               })}
 
-              <button type="button" className="canvas-custom-trigger" onClick={openCustomPicker} aria-label={CANVAS_COPY.actions.openColorPicker}>
+              <button type="button" className="canvas-custom-trigger" onClick={props.onToggleCustom} aria-label={CANVAS_COPY.actions.openColorPicker}>
                 <span>+</span>
               </button>
             </div>
 
             <div className="canvas-cooldown-bar-shell">
               <span className="canvas-cooldown-label">
-                {isReady ? CANVAS_COPY.actions.placePixelReady : `${CANVAS_COPY.paint.cooldownPrefix} ${props.cooldownLabel}`}
+                {isReady ? CANVAS_COPY.status.ready : `${CANVAS_COPY.paint.cooldownPrefix} ${props.cooldownLabel}`}
               </span>
               <div className="canvas-cooldown-bar">
                 <span style={{ width: props.placementProgress }} />
               </div>
             </div>
           </div>
-
         </div>
       </div>
 
@@ -149,7 +145,7 @@ function CanvasPaintPanel(props: CanvasPaintPanelProps): JSX.Element {
               <strong>{CANVAS_COPY.paint.pickerGui}</strong>
             </div>
             <button type="button" className="canvas-close-button" onClick={props.onCloseCustom} aria-label={CANVAS_COPY.actions.closeColorPicker}>
-              x
+              ×
             </button>
           </div>
 
@@ -197,8 +193,8 @@ function CanvasPaintPanel(props: CanvasPaintPanelProps): JSX.Element {
                     className="canvas-eyedropper-button"
                     onClick={props.onPickEyedropper}
                     disabled={!props.isEyedropperAvailable}
-                    aria-label="Pick color from screen"
-                    title={props.isEyedropperAvailable ? "Pick color from screen" : "Eyedropper is not supported"}
+                    aria-label={CANVAS_COPY.paint.pickScreenColor}
+                    title={props.isEyedropperAvailable ? CANVAS_COPY.paint.pickScreenColor : CANVAS_COPY.paint.eyedropperUnsupported}
                   >
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                       <path
@@ -211,9 +207,9 @@ function CanvasPaintPanel(props: CanvasPaintPanelProps): JSX.Element {
 
                 <div className="canvas-rgb-fields">
                   {([
-                    ["red", "Red"],
-                    ["green", "Green"],
-                    ["blue", "Blue"]
+                    ["red", CANVAS_COPY.paint.channelRed],
+                    ["green", CANVAS_COPY.paint.channelGreen],
+                    ["blue", CANVAS_COPY.paint.channelBlue]
                   ] as const).map(([channel, label]) => (
                     <label key={channel} className="canvas-rgb-field">
                       <span>{label}</span>
@@ -251,7 +247,7 @@ function CanvasPaintPanel(props: CanvasPaintPanelProps): JSX.Element {
                             className={`canvas-picker-swatch ${active ? "is-active" : ""}`}
                             style={{ backgroundColor: hex }}
                             onClick={() => props.onCustomPickerChange(hex)}
-                            aria-label={`palette color ${hex}`}
+                            aria-label={`팔레트 색상 ${hex}`}
                           />
                         );
                       })}
@@ -275,7 +271,7 @@ function CanvasPaintPanel(props: CanvasPaintPanelProps): JSX.Element {
                       className="canvas-recent-swatch"
                       style={{ backgroundColor: hex }}
                       onClick={() => props.onPickRecent(color)}
-                      aria-label={`recent color ${hex}`}
+                      aria-label={`최근 색상 ${hex}`}
                     />
                   );
                 })}

@@ -49,7 +49,7 @@ export function formatCountdown(seconds: number): string {
 
 export function formatTimestamp(value: string | null): string {
   if (!value) {
-    return "Not painted yet";
+    return CANVAS_COPY.tooltip.notPaintedYet;
   }
 
   return new Intl.DateTimeFormat("ko-KR", {
@@ -63,20 +63,20 @@ export function formatTimestamp(value: string | null): string {
 
 export function formatRelativeTime(value: string | null): string {
   if (!value) {
-    return "Fresh canvas";
+    return CANVAS_COPY.tooltip.freshCanvas;
   }
 
   const seconds = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 1000));
   if (seconds < 60) {
-    return `${seconds}s ago`;
+    return `${seconds}초 전`;
   }
   if (seconds < 3600) {
-    return `${Math.floor(seconds / 60)}m ago`;
+    return `${Math.floor(seconds / 60)}분 전`;
   }
   if (seconds < 86400) {
-    return `${Math.floor(seconds / 3600)}h ago`;
+    return `${Math.floor(seconds / 3600)}시간 전`;
   }
-  return `${Math.floor(seconds / 86400)}d ago`;
+  return `${Math.floor(seconds / 86400)}일 전`;
 }
 
 export function applyPixelUpdate(previous: readonly number[], size: number, update: CanvasPixelUpdate): number[] {
@@ -108,7 +108,7 @@ export function pushActivity(previous: readonly ActivityItem[], update: CanvasPi
   return [
     {
       id,
-      text: `${displayNickname(update.painter)} 님이 (${update.x}, ${update.y})에 점을 찍었어요.`
+      text: `${displayNickname(update.painter)} 님이 (${update.x}, ${update.y})에 픽셀을 배치했어요.`
     },
     ...previous
   ].slice(0, 8);
@@ -164,4 +164,3 @@ export function getConnectionStatusLabel(status: "CONNECTING" | "LIVE" | "DEGRAD
       return CANVAS_COPY.status.connecting;
   }
 }
-

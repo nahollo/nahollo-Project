@@ -7,11 +7,13 @@ export interface RGBColor {
 export const CANVAS_SIZE = 512;
 export const CANVAS_HISTORY_THUMBNAIL_SIZE = 64;
 export const DEFAULT_CANVAS_COLOR = 0xf8f6f0;
+
 export const DEFAULT_SELECTED_COLOR: RGBColor = {
   red: 58,
   green: 134,
   blue: 255
 };
+
 export const FIXED_CANVAS_PALETTE: readonly RGBColor[] = [
   { red: 0, green: 0, blue: 0 },
   { red: 255, green: 255, blue: 255 },
@@ -139,5 +141,9 @@ export function formatSeasonCode(seasonCode: string): string {
   }
 
   const monthNumber = Number(month);
-  return Number.isFinite(monthNumber) ? `${year}년 ${monthNumber}월` : seasonCode;
+  if (!Number.isFinite(monthNumber)) {
+    return seasonCode;
+  }
+
+  return `${year}년 ${monthNumber}월`;
 }

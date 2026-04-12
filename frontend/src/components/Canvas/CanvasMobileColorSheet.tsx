@@ -44,7 +44,7 @@ function CanvasMobileColorSheet(props: CanvasMobileColorSheetProps): JSX.Element
             <strong>{CANVAS_COPY.paint.pickerGui}</strong>
           </div>
           <button type="button" className="canvas-close-button" onClick={props.onClose} aria-label={CANVAS_COPY.actions.closeColorPicker}>
-            x
+            ×
           </button>
         </div>
 
@@ -93,8 +93,8 @@ function CanvasMobileColorSheet(props: CanvasMobileColorSheetProps): JSX.Element
                     className="canvas-eyedropper-button"
                     onClick={props.onPickEyedropper}
                     disabled={!props.isEyedropperAvailable}
-                    aria-label="Pick color from screen"
-                    title={props.isEyedropperAvailable ? "Pick color from screen" : "Eyedropper is not supported"}
+                    aria-label={CANVAS_COPY.paint.pickScreenColor}
+                    title={props.isEyedropperAvailable ? CANVAS_COPY.paint.pickScreenColor : CANVAS_COPY.paint.eyedropperUnsupported}
                   >
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                       <path
@@ -107,9 +107,9 @@ function CanvasMobileColorSheet(props: CanvasMobileColorSheetProps): JSX.Element
 
                 <div className="canvas-rgb-fields">
                   {([
-                    ["red", "Red"],
-                    ["green", "Green"],
-                    ["blue", "Blue"]
+                    ["red", CANVAS_COPY.paint.channelRed],
+                    ["green", CANVAS_COPY.paint.channelGreen],
+                    ["blue", CANVAS_COPY.paint.channelBlue]
                   ] as const).map(([channel, label]) => (
                     <label key={channel} className="canvas-rgb-field">
                       <span>{label}</span>
@@ -147,7 +147,7 @@ function CanvasMobileColorSheet(props: CanvasMobileColorSheetProps): JSX.Element
                             className={`canvas-picker-swatch ${active ? "is-active" : ""}`}
                             style={{ backgroundColor: hex }}
                             onClick={() => props.onCustomPickerChange(hex)}
-                            aria-label={`palette color ${hex}`}
+                            aria-label={`팔레트 색상 ${hex}`}
                           />
                         );
                       })}
@@ -171,7 +171,7 @@ function CanvasMobileColorSheet(props: CanvasMobileColorSheetProps): JSX.Element
                       className="canvas-recent-swatch"
                       style={{ backgroundColor: hex }}
                       onClick={() => props.onPickRecent(color)}
-                      aria-label={`recent color ${hex}`}
+                      aria-label={`최근 색상 ${hex}`}
                     />
                   );
                 })}

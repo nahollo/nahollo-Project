@@ -1035,11 +1035,9 @@ html[data-theme="dark"] .canvas-paint-trigger-state {
   z-index: 5;
   min-width: 0;
   border: 1px solid color-mix(in srgb, var(--canvas-border-strong) 90%, white 10%);
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--canvas-surface-strong) 97%, white 3%) 0%,
-    color-mix(in srgb, var(--canvas-surface) 95%, white 5%) 100%
-  );
+  background: linear-gradient(180deg,
+      color-mix(in srgb, var(--canvas-surface-strong) 97%, white 3%) 0%,
+      color-mix(in srgb, var(--canvas-surface) 95%, white 5%) 100%);
   box-shadow: 0 1.3rem 2.4rem -1.2rem rgba(15, 23, 42, 0.32);
 }
 
@@ -2102,5 +2100,488 @@ html[data-theme="dark"] .canvas-paint-trigger-state {
   .canvas-loading-dots span,
   .canvas-place-button.is-error {
     animation: none !important;
+  }
+}
+
+/* ===== canvas UI refinement patch ===== */
+
+/* 우측 상단 확대/축소/그리드/리셋 컨트롤 */
+.canvas-controls-cluster {
+  position: fixed;
+  top: calc(var(--header-height) + 1.4rem);
+  right: 1.3rem;
+  z-index: 1250;
+  display: grid;
+  gap: 0.52rem;
+  pointer-events: auto;
+}
+
+.canvas-icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 2.8rem;
+  height: 2.8rem;
+  border: 1px solid rgba(94, 109, 132, 0.26);
+  border-radius: 0.95rem;
+  background: rgba(255, 255, 255, 0.94);
+  color: #1e2430;
+  box-shadow: 0 14px 32px -24px rgba(20, 25, 40, 0.28);
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    transform 0.14s ease,
+    border-color 0.14s ease,
+    background-color 0.14s ease,
+    color 0.14s ease;
+}
+
+.canvas-icon-button:hover,
+.canvas-icon-button:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(91, 99, 246, 0.42);
+  background: rgba(242, 244, 255, 0.98);
+  color: #4750eb;
+  outline: none;
+}
+
+.canvas-icon-button.is-active {
+  border-color: rgba(91, 99, 246, 0.58);
+  background: rgba(233, 237, 255, 0.98);
+  color: #4750eb;
+}
+
+/* 캔버스 하단 상태바 가독성 강화 */
+.canvas-status-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 1.3rem;
+  z-index: 1240;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.8rem;
+  align-items: center;
+  justify-content: center;
+  width: min(78rem, calc(100vw - 14rem));
+  transform: translateX(-50%);
+  padding: 0.82rem 1rem;
+  border: 1px solid rgba(94, 109, 132, 0.24);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.93);
+  box-shadow: 0 16px 40px -28px rgba(20, 25, 40, 0.24);
+  color: #5f6f86;
+  font-size: clamp(0.76rem, 0.18vw + 0.72rem, 0.93rem);
+}
+
+.canvas-status-bar strong {
+  color: #1e2430;
+  font-weight: 800;
+}
+
+/* 닉네임 input 포커스 강조 */
+.canvas-input-group input:focus,
+.canvas-text-field input:focus,
+.canvas-rgb-field input[type="number"]:focus {
+  outline: none;
+  border-color: #5b63f6;
+  box-shadow:
+    0 0 0 3px rgba(91, 99, 246, 0.14),
+    0 0 0 1px rgba(91, 99, 246, 0.24);
+}
+
+/* 최근 활동 제어 버튼 */
+.canvas-activity-controls {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.42rem;
+  justify-content: flex-end;
+}
+
+.canvas-activity-control {
+  padding: 0.5rem 0.72rem;
+  border: 1px solid rgba(94, 109, 132, 0.2);
+  border-radius: 0.82rem;
+  background: rgba(255, 255, 255, 0.9);
+  color: #2c3443;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 0.14s ease,
+    border-color 0.14s ease,
+    background-color 0.14s ease;
+}
+
+.canvas-activity-control:hover,
+.canvas-activity-control:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(91, 99, 246, 0.36);
+  background: rgba(242, 244, 255, 0.96);
+  outline: none;
+}
+
+.canvas-activity-control.is-active {
+  border-color: rgba(91, 99, 246, 0.54);
+  background: rgba(233, 237, 255, 0.96);
+  color: #4750eb;
+}
+
+.canvas-activity-hint {
+  margin: 0;
+  color: #6f7d91;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+/* 색상 피커와 버튼 연결감 */
+.canvas-color-popover {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 0.7rem);
+  z-index: 10;
+}
+
+.canvas-color-popover::after {
+  content: "";
+  position: absolute;
+  right: 1.6rem;
+  bottom: -0.42rem;
+  width: 0.84rem;
+  height: 0.84rem;
+  border-right: 1px solid rgba(94, 109, 132, 0.24);
+  border-bottom: 1px solid rgba(94, 109, 132, 0.24);
+  background: rgba(255, 255, 255, 0.96);
+  transform: rotate(45deg);
+}
+
+/* RGB 슬라이더 터치 영역 확대 */
+.canvas-rgb-field {
+  display: grid;
+  grid-template-columns: 4.2rem minmax(0, 1fr) 4.8rem;
+  gap: 0.7rem;
+  align-items: center;
+}
+
+.canvas-rgb-field input[type="range"] {
+  width: 100%;
+  height: 1rem;
+  accent-color: #5b63f6;
+}
+
+.canvas-rgb-field input[type="range"]::-webkit-slider-thumb {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.canvas-rgb-field input[type="range"]::-moz-range-thumb {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+/* 팔레트 칩 간격 확대 */
+.canvas-palette-grid {
+  gap: 0.46rem;
+}
+
+.canvas-palette-bank {
+  gap: 0.56rem;
+}
+
+.canvas-recent-colors>div {
+  gap: 0.56rem;
+}
+
+/* 그리드 표시 */
+.canvas-grid-overlay {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(58, 73, 95, 0.18) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(58, 73, 95, 0.18) 1px, transparent 1px);
+  pointer-events: none;
+}
+
+/* 모달/시트 오버레이 딤 + 블러 강화 */
+.canvas-overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1190;
+  background: rgba(10, 16, 28, 0.22);
+  backdrop-filter: blur(6px);
+}
+
+.canvas-overlay-backdrop.is-strong {
+  background: rgba(10, 16, 28, 0.34);
+  backdrop-filter: blur(10px);
+}
+
+/* 다크모드 깊이감 + 텍스트 대비 */
+html[data-theme="dark"] .canvas-sidebar-card,
+html[data-theme="dark"] .canvas-paint-panel,
+html[data-theme="dark"] .canvas-color-popover,
+html[data-theme="dark"] .canvas-mobile-color-sheet,
+html[data-theme="dark"] .canvas-mobile-meta-sheet,
+html[data-theme="dark"] .canvas-history-drawer,
+html[data-theme="dark"] .canvas-history-modal,
+html[data-theme="dark"] .canvas-toast,
+html[data-theme="dark"] .canvas-loading-overlay,
+html[data-theme="dark"] .canvas-status-bar,
+html[data-theme="dark"] .canvas-mobile-paint-tray {
+  background: rgba(22, 35, 56, 0.94);
+  border-color: rgba(141, 162, 194, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 20px 44px -28px rgba(2, 8, 23, 0.76);
+}
+
+html[data-theme="dark"] .canvas-status-bar {
+  color: #b4c0d4;
+}
+
+html[data-theme="dark"] .canvas-status-bar strong,
+html[data-theme="dark"] .canvas-sidebar-card h1,
+html[data-theme="dark"] .canvas-sidebar-card strong,
+html[data-theme="dark"] .canvas-activity-block li,
+html[data-theme="dark"] .canvas-popover-header strong,
+html[data-theme="dark"] .canvas-mobile-meta-item strong {
+  color: #f3f7fd;
+}
+
+html[data-theme="dark"] .canvas-sidebar-copy,
+html[data-theme="dark"] .canvas-activity-hint,
+html[data-theme="dark"] .canvas-input-group span,
+html[data-theme="dark"] .canvas-activity-label,
+html[data-theme="dark"] .canvas-palette-group-title,
+html[data-theme="dark"] .canvas-recent-colors>span,
+html[data-theme="dark"] .canvas-text-field span,
+html[data-theme="dark"] .canvas-rgb-field span,
+html[data-theme="dark"] .canvas-mobile-meta-item span {
+  color: #b8c4d8;
+}
+
+html[data-theme="dark"] .canvas-input-group input,
+html[data-theme="dark"] .canvas-text-field input,
+html[data-theme="dark"] .canvas-rgb-field input[type="number"] {
+  background: rgba(16, 26, 42, 0.96);
+  border-color: rgba(141, 162, 194, 0.18);
+  color: #f3f7fd;
+}
+
+html[data-theme="dark"] .canvas-activity-control,
+html[data-theme="dark"] .canvas-icon-button,
+html[data-theme="dark"] .canvas-secondary-button,
+html[data-theme="dark"] .canvas-close-button,
+html[data-theme="dark"] .canvas-eyedropper-button,
+html[data-theme="dark"] .canvas-current-color-trigger {
+  background: rgba(20, 31, 49, 0.96);
+  border-color: rgba(141, 162, 194, 0.2);
+  color: #f3f7fd;
+}
+
+html[data-theme="dark"] .canvas-activity-control:hover,
+html[data-theme="dark"] .canvas-icon-button:hover,
+html[data-theme="dark"] .canvas-secondary-button:hover,
+html[data-theme="dark"] .canvas-eyedropper-button:hover,
+html[data-theme="dark"] .canvas-current-color-trigger:hover {
+  background: rgba(32, 46, 72, 0.98);
+  border-color: rgba(138, 146, 255, 0.34);
+}
+
+html[data-theme="dark"] .canvas-color-popover::after {
+  background: rgba(22, 35, 56, 0.98);
+  border-right-color: rgba(141, 162, 194, 0.24);
+  border-bottom-color: rgba(141, 162, 194, 0.24);
+}
+
+html[data-theme="dark"] .canvas-grid-overlay {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.12) 1px, transparent 1px);
+}
+
+/* 모바일 보정 */
+@media (max-width: 991px) {
+  .canvas-controls-cluster {
+    top: auto;
+    right: 0.8rem;
+    bottom: calc(6.9rem + env(safe-area-inset-bottom));
+  }
+
+  .canvas-status-bar {
+    left: 0.8rem;
+    right: 0.8rem;
+    bottom: calc(6.2rem + env(safe-area-inset-bottom));
+    width: auto;
+    max-width: none;
+    transform: none;
+    justify-content: flex-start;
+    padding: 0.72rem 0.8rem;
+    font-size: 0.78rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .canvas-icon-button {
+    width: 2.6rem;
+    height: 2.6rem;
+    border-radius: 0.86rem;
+  }
+
+  .canvas-rgb-field {
+    grid-template-columns: 1fr;
+  }
+
+  .canvas-rgb-field input[type="number"] {
+    width: 100%;
+  }
+}
+
+/* ===== canvas stability pass ===== */
+.canvas-overlay-slot-left {
+  width: clamp(16rem, 17vw, 19rem);
+}
+
+.canvas-overlay-slot-right {
+  right: 2.4vw;
+  bottom: 2.8dvh;
+  width: clamp(16rem, 19vw, 21rem);
+}
+
+.canvas-controls-cluster {
+  top: calc(var(--header-height) + 2dvh);
+  right: 2.4vw;
+  gap: 0.5rem;
+}
+
+.canvas-icon-button {
+  border-color: color-mix(in srgb, var(--canvas-accent) 34%, var(--canvas-border-strong));
+  color: color-mix(in srgb, var(--canvas-text) 92%, #111827);
+}
+
+.canvas-sidebar-card {
+  max-height: 72dvh;
+  overflow-x: hidden;
+}
+
+.canvas-sidebar-card * {
+  min-width: 0;
+}
+
+.canvas-sidebar-copy,
+.canvas-rule-copy,
+.canvas-activity-block li {
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+
+.canvas-history-pill {
+  width: clamp(10rem, 11vw, 12.5rem);
+  min-height: clamp(3rem, 5.2dvh, 3.6rem);
+}
+
+.canvas-paint-panel.is-collapsed {
+  width: clamp(10rem, 11vw, 12rem);
+}
+
+.canvas-paint-panel.is-expanded {
+  width: clamp(16rem, 19vw, 21rem);
+}
+
+.canvas-paint-panel button,
+.canvas-place-button,
+.canvas-paint-launch-button,
+.canvas-paint-trigger-state {
+  white-space: nowrap;
+}
+
+.canvas-palette-grid {
+  gap: 0.72rem;
+}
+
+.canvas-status-bar {
+  color: color-mix(in srgb, var(--canvas-text) 70%, var(--canvas-text-muted));
+}
+
+.canvas-status-bar span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.canvas-status-bar strong {
+  color: var(--canvas-text);
+}
+
+.canvas-color-popover {
+  right: 0;
+  bottom: calc(100% + 0.65rem);
+}
+
+.canvas-color-popover::after {
+  right: 1.5rem;
+}
+
+.canvas-rgb-field input[type="range"] {
+  height: 1.05rem;
+}
+
+.canvas-rgb-field input[type="range"]::-webkit-slider-thumb {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.canvas-rgb-field input[type="range"]::-moz-range-thumb {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+html[data-theme="dark"] .canvas-status-bar {
+  color: #d2ddee;
+}
+
+html[data-theme="dark"] .canvas-sidebar-copy,
+html[data-theme="dark"] .canvas-rule-copy,
+html[data-theme="dark"] .canvas-activity-hint,
+html[data-theme="dark"] .canvas-activity-block li,
+html[data-theme="dark"] .canvas-cooldown-label,
+html[data-theme="dark"] .canvas-paint-hex,
+html[data-theme="dark"] .canvas-palette-group-title,
+html[data-theme="dark"] .canvas-recent-colors > span {
+  color: #ccd8ec;
+}
+
+html[data-theme="dark"] .canvas-icon-button {
+  background: rgba(20, 31, 49, 0.96);
+  border-color: rgba(141, 162, 194, 0.28);
+  color: #f3f7fd;
+}
+
+html[data-theme="dark"] .canvas-icon-button:hover,
+html[data-theme="dark"] .canvas-icon-button:focus-visible {
+  background: rgba(30, 45, 72, 0.98);
+  border-color: rgba(159, 166, 255, 0.42);
+}
+
+@media (max-width: 1400px) {
+  .canvas-status-bar {
+    width: min(72rem, calc(100vw - 16rem));
+  }
+}
+
+@media (max-width: 991px) {
+  .canvas-mobile-slot-bottom {
+    bottom: 1.2dvh;
+  }
+
+  .canvas-mobile-paint-handle,
+  .canvas-mobile-tray-sheet {
+    max-width: 100%;
+  }
+
+  .canvas-mobile-tray-status {
+    flex-wrap: wrap;
+    gap: 0.6rem;
   }
 }

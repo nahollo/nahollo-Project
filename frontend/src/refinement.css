@@ -120,11 +120,9 @@ html[data-theme="dark"] {
   --chip-text: #f8fafc;
   --focus-ring: rgba(164, 167, 255, 0.22);
   --focus-ring-strong: rgba(184, 187, 255, 0.38);
-  --button-primary-bg: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--accent-solid) 80%, #16233a),
-    color-mix(in srgb, var(--accent-strong) 78%, #1a2943)
-  );
+  --button-primary-bg: linear-gradient(135deg,
+      color-mix(in srgb, var(--accent-solid) 80%, #16233a),
+      color-mix(in srgb, var(--accent-strong) 78%, #1a2943));
   --button-primary-border: rgba(164, 167, 255, 0.24);
   --button-primary-text: #f8fafc;
   --button-secondary-bg: rgba(25, 38, 59, 0.96);
@@ -345,8 +343,7 @@ html[data-theme="dark"] .github-calendar-shell {
   transform: translateY(-1px);
 }
 
-:where(
-  .brand-link,
+:where(.brand-link,
   .navbar-toggler,
   .route-link,
   .theme-toggle,
@@ -357,8 +354,7 @@ html[data-theme="dark"] .github-calendar-shell {
   .project-action-link,
   .project-filter-tab,
   .connect-social-link,
-  .footer-icons a
-):focus-visible {
+  .footer-icons a):focus-visible {
   outline: none;
   border-color: var(--accent-border-strong);
   box-shadow:
@@ -377,8 +373,7 @@ html[data-theme="dark"] .github-calendar-shell {
   text-underline-offset: 0.22em;
 }
 
-:where(
-  .brand-link,
+:where(.brand-link,
   .navbar-toggler,
   .route-link,
   .theme-toggle,
@@ -393,13 +388,11 @@ html[data-theme="dark"] .github-calendar-shell {
   .footer-link,
   .about-preview-link,
   .resume-inline-link,
-  .hero-inline-note a
-):focus:not(:focus-visible) {
+  .hero-inline-note a):focus:not(:focus-visible) {
   outline: none;
 }
 
-:where(
-  .hero-button,
+:where(.hero-button,
   .resume-action,
   .connect-button,
   .header-link,
@@ -408,8 +401,7 @@ html[data-theme="dark"] .github-calendar-shell {
   .theme-toggle,
   .connect-social-link,
   .footer-icons a,
-  .navbar-toggler
-):active {
+  .navbar-toggler):active {
   transform: translateY(0) scale(0.995);
   filter: brightness(0.985);
 }
@@ -601,13 +593,26 @@ html[data-theme="dark"] .site-header.sticky {
   border-radius: 999px;
   color: var(--text-muted-strong);
   font-size: var(--body-md);
-  font-weight: var(--weight-meta);
+  font-weight: 620;
+  position: relative;
 }
 
 .route-link.is-active {
   background: var(--accent-soft-surface);
   color: var(--accent-strong);
   box-shadow: inset 0 0 0 1px var(--accent-border-strong);
+  font-weight: 760;
+}
+
+.route-link.is-active::before {
+  content: "";
+  position: absolute;
+  left: 0.9rem;
+  right: 0.9rem;
+  bottom: 0.35rem;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent-color), var(--accent-strong));
 }
 
 .nav-link-content {
@@ -641,8 +646,8 @@ html[data-theme="dark"] .site-header.sticky {
 }
 
 .home-content,
-.about-section > .container,
-.project-section > .container,
+.about-section>.container,
+.project-section>.container,
 .resume-shell {
   width: min(var(--page-max-width), calc(100% - var(--content-gutter))) !important;
 }
@@ -1001,7 +1006,7 @@ html[data-theme="dark"] .connect-button-secondary:focus-visible {
   align-content: start;
 }
 
-.profile-point-list li + li {
+.profile-point-list li+li {
   padding-top: 0.86rem;
   border-top: 1px solid var(--section-divider);
 }
@@ -1214,7 +1219,7 @@ html[data-theme="dark"] .connect-button-secondary:focus-visible {
   max-width: 58ch;
 }
 
-.about-card-block + .about-card-block {
+.about-card-block+.about-card-block {
   padding-top: 1rem;
   border-top: 1px solid var(--section-divider);
 }
@@ -1226,8 +1231,8 @@ html[data-theme="dark"] .connect-button-secondary:focus-visible {
   margin: 0.18rem 0 0.04rem;
 }
 
-.about-focus-grid + .about-card-block,
-.about-card-block + .about-card-quote {
+.about-focus-grid+.about-card-block,
+.about-card-block+.about-card-quote {
   padding-top: 0.98rem;
   border-top: 1px solid var(--section-divider);
 }
@@ -1831,7 +1836,7 @@ html[data-theme="dark"] .resume-focus-list li {
   padding-top: 0.12rem;
 }
 
-.resume-panel-head + .resume-project-list {
+.resume-panel-head+.resume-project-list {
   padding-top: 0.08rem;
 }
 
@@ -1866,7 +1871,7 @@ html[data-theme="dark"] .resume-focus-list li {
   row-gap: 1.05rem;
 }
 
-.footer-shell > [class*="col-"] {
+.footer-shell>[class*="col-"] {
   display: grid;
   align-content: start;
   gap: 0.34rem;
@@ -1995,6 +2000,7 @@ html[data-theme="dark"] .resume-focus-list li {
 }
 
 @media (max-width: 1199px) {
+
   .hero-value-grid,
   .resume-highlight-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2002,10 +2008,11 @@ html[data-theme="dark"] .resume-focus-list li {
 }
 
 @media (max-width: 991px) {
+
   .navbar-shell,
   .home-content,
-  .about-section > .container,
-  .project-section > .container,
+  .about-section>.container,
+  .project-section>.container,
   .resume-shell,
   .connect-shell,
   .footer-shell {
@@ -2074,6 +2081,7 @@ html[data-theme="dark"] .resume-focus-list li {
 }
 
 @media (max-width: 767px) {
+
   html,
   html[data-theme="dark"] {
     --content-gutter: 22px;
@@ -2193,7 +2201,7 @@ html[data-theme="dark"] .resume-focus-list li {
       background-color 0.22s ease !important;
   }
 
-  .navbar-toggler span + span {
+  .navbar-toggler span+span {
     margin-top: 3.75px !important;
   }
 
@@ -2488,7 +2496,7 @@ html[data-theme="dark"] .canvas-overlay-badge {
   color: #c5c8ff;
 }
 
-.canvas-session-card > strong,
+.canvas-session-card>strong,
 .canvas-picker-head strong,
 .canvas-history-overlay-head strong,
 .canvas-action-chip strong {
@@ -2889,6 +2897,7 @@ html[data-theme="dark"] .canvas-overlay-close {
 }
 
 @media (max-width: 1199px) {
+
   .canvas-session-overlay,
   .canvas-picker-overlay {
     width: 24%;
@@ -2994,7 +3003,7 @@ html[data-theme="dark"] .canvas-overlay-close {
     font-size: min(1.1vh, 2vw);
   }
 
-  .canvas-session-card > strong,
+  .canvas-session-card>strong,
   .canvas-picker-head strong,
   .canvas-history-overlay-head strong,
   .canvas-action-chip strong,
@@ -3065,4 +3074,31 @@ html[data-theme="dark"] .canvas-overlay-close {
   .canvas-preset-grid {
     gap: 1vw;
   }
+}
+
+
+/* ===== navbar active state refinement ===== */
+
+.route-link {
+  position: relative;
+}
+
+.route-link.is-active {
+  font-weight: 800;
+}
+
+.route-link.is-active .nav-link-content span:last-child {
+  font-weight: 800;
+}
+
+.route-link.is-active::before {
+  content: "";
+  position: absolute;
+  left: 0.95rem;
+  right: 0.95rem;
+  bottom: 0.34rem;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.9;
 }

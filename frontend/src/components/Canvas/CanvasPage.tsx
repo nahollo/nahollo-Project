@@ -56,7 +56,7 @@ import {
   writeRecentColors
 } from "./canvasUtils";
 
-const COOLDOWN_SECONDS = 30;
+const COOLDOWN_SECONDS = 300;
 const MAX_ZOOM = 24;
 const UPDATE_DEDUP_WINDOW_MS = 15000;
 const UPDATE_SYNC_LIVE_INTERVAL_MS = 12000;
@@ -148,9 +148,22 @@ function CanvasPage(): JSX.Element {
   const [isPaintExpanded, setIsPaintExpanded] = useState(false);
   const [isMobileInfoOpen, setIsMobileInfoOpen] = useState(false);
   const [isMobilePixelInfoOpen, setIsMobilePixelInfoOpen] = useState(false);
+  const [isActivityPaused, setIsActivityPaused] = useState(false);
+  const [pendingActivityCount, setPendingActivityCount] = useState(0);
+  const isActivityPausedRef = useRef(false);
+
+  const handleToggleActivityPause = useCallback(() => {
+    setIsActivityPaused((current) => !current);
+  }, []);
+
+  const handleClearActivity = useCallback(() => {
+    setPendingActivityCount(0);
+    setRecentActivity([]);
+  }, []);
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState<OffsetPoint>({ x: 0, y: 0 });
   const [stageSize, setStageSize] = useState(0);
+  const [isGridEnabled, setIsGridEnabled] = useState(false);
   const [isMobileLayout, setIsMobileLayout] = useState<boolean>(() =>
     typeof window !== "undefined" ? window.matchMedia(MOBILE_BREAKPOINT).matches : false
   );
@@ -178,9 +191,10 @@ function CanvasPage(): JSX.Element {
   const placementProgress = `${Math.max(0, Math.min(100, ((COOLDOWN_SECONDS - cooldownSeconds) / COOLDOWN_SECONDS) * 100))}%`;
   const connectionLabel = getConnectionStatusLabel(connectionState);
   const actionCooldownLabel = formatCountdown(Math.max(0, cooldownSeconds));
-  const cooldownLabel = placeState === "ready" ? CANVAS_COPY.status.ready : `${actionCooldownLabel} left`;
+  const cooldownLabel = placeState === "ready" ? CANVAS_COPY.status.ready : actionCooldownLabel;
   const selectedLabel = selectedPixel ? `(${selectedPixel.x}, ${selectedPixel.y})` : CANVAS_COPY.status.notSelected;
   const selectedColorLabel = selectedMeta ? rgbToHex(unpackRgb(selectedMeta.color)) : selectedColorHex;
+  const selectedUserLabel = displayNickname(selectedMeta?.nickname);
   const seasonLabel = formatSeasonCode(state?.season.seasonCode ?? "2026-04");
 
   const handlePresetColorPick = useCallback((color: RGBColor) => {
@@ -235,6 +249,13 @@ function CanvasPage(): JSX.Element {
   useEffect(() => {
     boardSizeRef.current = boardSize;
   }, [boardSize]);
+
+  useEffect(() => {
+    isActivityPausedRef.current = isActivityPaused;
+    if (!isActivityPaused) {
+      setPendingActivityCount(0);
+    }
+  }, [isActivityPaused]);
 
   useEffect(() => {
     isUnmountedRef.current = false;
@@ -297,36 +318,42 @@ function CanvasPage(): JSX.Element {
 
   useEffect(() => {
     const stage = stageRef.current;
-    if (!stage || typeof ResizeObserver === "undefined") {
+    if (!stage) {
       return;
     }
 
-    const observer = new ResizeObserver((entries) => {
-      const nextWidth = Math.round(entries[0]?.contentRect.width ?? 0);
+    const measureStage = () => {
+      const nextWidth = Math.round(stage.getBoundingClientRect().width);
       if (!nextWidth || nextWidth === stageSizeRef.current) {
         return;
       }
 
       stageSizeRef.current = nextWidth;
+      setStageSize((previous) => (previous === nextWidth ? previous : nextWidth));
+      setOffset((previous) => {
+        const clamped = clampOffset(previous, scaleRef.current, nextWidth);
+        return clamped.x === previous.x && clamped.y === previous.y ? previous : clamped;
+      });
+    };
 
+    const scheduleMeasure = () => {
       if (resizeFrameRef.current !== null) {
         window.cancelAnimationFrame(resizeFrameRef.current);
       }
 
       resizeFrameRef.current = window.requestAnimationFrame(() => {
         resizeFrameRef.current = null;
-        setStageSize((previous) => (previous === nextWidth ? previous : nextWidth));
-        setOffset((previous) => {
-          const clamped = clampOffset(previous, scaleRef.current, nextWidth);
-          return clamped.x === previous.x && clamped.y === previous.y ? previous : clamped;
-        });
+        measureStage();
       });
-    });
+    };
 
-    observer.observe(stage);
+    scheduleMeasure();
+    window.addEventListener("resize", scheduleMeasure, { passive: true });
+    window.addEventListener("orientationchange", scheduleMeasure, { passive: true });
 
     return () => {
-      observer.disconnect();
+      window.removeEventListener("resize", scheduleMeasure);
+      window.removeEventListener("orientationchange", scheduleMeasure);
       if (resizeFrameRef.current !== null) {
         window.cancelAnimationFrame(resizeFrameRef.current);
       }
@@ -398,7 +425,11 @@ function CanvasPage(): JSX.Element {
 
     setPixels((previous) => applyPixelUpdate(previous, boardSizeRef.current, update));
     setPlacedCount((previous) => previous + 1);
-    setRecentActivity((previous) => pushActivity(previous, update));
+    if (isActivityPausedRef.current) {
+      setPendingActivityCount((previous) => Math.min(99, previous + 1));
+    } else {
+      setRecentActivity((previous) => pushActivity(previous, update));
+    }
     cacheMeta(metaCacheRef.current, {
       x: update.x,
       y: update.y,
@@ -605,6 +636,35 @@ function CanvasPage(): JSX.Element {
   }, [hoveredPixel, isTouchMode, selectedPixel]);
 
   useEffect(() => {
+    if (!selectedPixel) {
+      setSelectedMeta(null);
+      return;
+    }
+
+    const key = `${selectedPixel.x}:${selectedPixel.y}`;
+    const cached = metaCacheRef.current.get(key);
+    if (cached) {
+      setSelectedMeta(cached);
+      return;
+    }
+
+    let mounted = true;
+    void fetchCanvasPixelMeta(selectedPixel.x, selectedPixel.y)
+      .then((meta) => {
+        if (!mounted || meta.x !== selectedPixel.x || meta.y !== selectedPixel.y) {
+          return;
+        }
+        cacheMeta(metaCacheRef.current, meta);
+        setSelectedMeta(meta);
+      })
+      .catch(() => mounted && setSelectedMeta(null));
+
+    return () => {
+      mounted = false;
+    };
+  }, [selectedPixel]);
+
+  useEffect(() => {
     if (!selectedHistoryCode) {
       setHistoryDetail(null);
       return;
@@ -798,6 +858,23 @@ function CanvasPage(): JSX.Element {
     setOffset(nextOffset);
   };
 
+  const applyQuickZoom = (nextScale: number) => {
+    if (stageSizeRef.current <= 0) {
+      return;
+    }
+
+    const normalizedScale = Math.max(1, Math.min(MAX_ZOOM, nextScale));
+    setScale(normalizedScale);
+    setOffset((previous) => clampOffset(previous, normalizedScale, stageSizeRef.current));
+  };
+
+  const handleZoomIn = () => applyQuickZoom(scale * 1.15);
+  const handleZoomOut = () => applyQuickZoom(scale / 1.15);
+  const handleZoomReset = () => {
+    setScale(1);
+    setOffset({ x: 0, y: 0 });
+  };
+
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     dragRef.current = {
       startX: event.clientX,
@@ -845,8 +922,8 @@ function CanvasPage(): JSX.Element {
     }
 
     setSelectedPixel(point);
+    setSelectedMeta(metaCacheRef.current.get(`${point.x}:${point.y}`) ?? null);
     if (isTouchMode) {
-      setSelectedMeta(metaCacheRef.current.get(`${point.x}:${point.y}`) ?? null);
       setIsMobilePixelInfoOpen(true);
     }
   };
@@ -894,6 +971,7 @@ function CanvasPage(): JSX.Element {
 
   const hoveredBounds = computeBounds(hoveredPixel);
   const selectedBounds = computeBounds(selectedPixel);
+  const shouldShowGrid = isGridEnabled && scale >= 4;
   const hoverOutlineWidth = Math.max(1, Math.min(2, 1.6 / Math.sqrt(scale)));
   const selectedOutlineWidth = Math.max(1.5, Math.min(2.8, 2.4 / Math.sqrt(scale)));
   const activeMeta = isTouchMode ? selectedMeta : hoveredMeta;
@@ -956,7 +1034,7 @@ function CanvasPage(): JSX.Element {
                   height={boardSize}
                   style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})` }}
                 />
-                {scale >= 8 && (
+                {shouldShowGrid && (
                   <div
                     className="canvas-grid-overlay"
                     style={
@@ -979,13 +1057,14 @@ function CanvasPage(): JSX.Element {
 
             <div className="canvas-status-bar">
               <span>
-                {CANVAS_COPY.status.hover}: {hoveredPixel ? `(${hoveredPixel.x}, ${hoveredPixel.y})` : CANVAS_COPY.status.notSelected}
+                <strong>{CANVAS_COPY.status.hover}</strong> {hoveredPixel ? `(${hoveredPixel.x}, ${hoveredPixel.y})` : CANVAS_COPY.status.notSelected}
               </span>
               <span>
-                {CANVAS_COPY.status.selected}: {selectedPixel ? `(${selectedPixel.x}, ${selectedPixel.y})` : CANVAS_COPY.status.notSelected}
+                <strong>{CANVAS_COPY.status.selected}</strong> {selectedPixel ? `(${selectedPixel.x}, ${selectedPixel.y})` : CANVAS_COPY.status.notSelected}
               </span>
-              <span>{CANVAS_COPY.status.zoom}: {Math.round(scale * 100)}%</span>
-              <span>{CANVAS_COPY.status.placedPixels}: {placedCount}</span>
+              <span><strong>{CANVAS_COPY.status.selectedUser}</strong> {selectedUserLabel}</span>
+              <span><strong>{CANVAS_COPY.status.zoom}</strong> {Math.round(scale * 100)}%</span>
+              <span><strong>{CANVAS_COPY.status.placedPixels}</strong> {placedCount}</span>
             </div>
           </div>
         </div>
@@ -994,13 +1073,43 @@ function CanvasPage(): JSX.Element {
       <div className="canvas-overlay-root">
         {!isMobileLayout && (
           <>
+            <div className="canvas-controls-cluster" role="group" aria-label="캔버스 조작">
+              <button type="button" className="canvas-icon-button" onClick={handleZoomIn} aria-label={CANVAS_COPY.actions.zoomIn}>
+                +
+              </button>
+              <button type="button" className="canvas-icon-button" onClick={handleZoomOut} aria-label={CANVAS_COPY.actions.zoomOut}>
+                −
+              </button>
+              <button type="button" className="canvas-icon-button" onClick={handleZoomReset} aria-label={CANVAS_COPY.actions.zoomReset}>
+                1:1
+              </button>
+              <button
+                type="button"
+                className={`canvas-icon-button ${isGridEnabled ? "is-active" : ""}`}
+                onClick={() => setIsGridEnabled((previous) => !previous)}
+                aria-label={isGridEnabled ? CANVAS_COPY.actions.gridOff : CANVAS_COPY.actions.gridOn}
+                title={isGridEnabled ? CANVAS_COPY.actions.gridOff : CANVAS_COPY.actions.gridOn}
+              >
+                #
+              </button>
+            </div>
+
             <div className="canvas-overlay-slot canvas-overlay-slot-left">
               <CanvasSidebar
                 season={state?.season ?? null}
                 boardSize={boardSize}
+                statusMessage={statusMessage}
+                connectionLabel={connectionLabel}
+                cooldownLabel={cooldownLabel}
+                selectedLabel={selectedLabel}
+                selectedColorLabel={selectedColorLabel}
                 nickname={nickname}
                 onNicknameChange={setNickname}
                 recentActivity={recentActivity}
+                isActivityPaused={isActivityPaused}
+                pendingActivityCount={pendingActivityCount}
+                onToggleActivityPause={handleToggleActivityPause}
+                onClearActivity={handleClearActivity}
               />
             </div>
 
@@ -1174,4 +1283,3 @@ function CanvasPage(): JSX.Element {
 }
 
 export default CanvasPage;
-
