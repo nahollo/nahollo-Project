@@ -42,7 +42,6 @@ import {
   applyPixelUpdate,
   cacheMeta,
   clampOffset,
-  createBlankCanvasState,
   formatCountdown,
   formatRelativeTime,
   formatTimestamp,
@@ -121,7 +120,7 @@ function CanvasPage(): JSX.Element {
   const hoverMetaRequestRef = useRef(0);
 
   const [state, setState] = useState<CanvasStateResponse | null>(null);
-  const [pixels, setPixels] = useState<number[]>(() => createBlankCanvasState(CANVAS_SIZE));
+  const [pixels, setPixels] = useState<number[]>([]);
   const [boardSize, setBoardSize] = useState(CANVAS_SIZE);
   const [history, setHistory] = useState<readonly CanvasSnapshotResponse[]>([]);
   const [historyDetail, setHistoryDetail] = useState<CanvasHistoryDetailResponse | null>(null);
@@ -150,22 +149,9 @@ function CanvasPage(): JSX.Element {
   const [isPaintExpanded, setIsPaintExpanded] = useState(false);
   const [isMobileInfoOpen, setIsMobileInfoOpen] = useState(false);
   const [isMobilePixelInfoOpen, setIsMobilePixelInfoOpen] = useState(false);
-  const [isActivityPaused, setIsActivityPaused] = useState(false);
-  const [pendingActivityCount, setPendingActivityCount] = useState(0);
-  const isActivityPausedRef = useRef(false);
-
-  const handleToggleActivityPause = useCallback(() => {
-    setIsActivityPaused((current) => !current);
-  }, []);
-
-  const handleClearActivity = useCallback(() => {
-    setPendingActivityCount(0);
-    setRecentActivity([]);
-  }, []);
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState<OffsetPoint>({ x: 0, y: 0 });
   const [stageSize, setStageSize] = useState(0);
-  const [isGridEnabled, setIsGridEnabled] = useState(false);
   const [isMobileLayout, setIsMobileLayout] = useState<boolean>(() =>
     typeof window !== "undefined" ? window.matchMedia(MOBILE_BREAKPOINT).matches : false
   );
@@ -261,13 +247,6 @@ function CanvasPage(): JSX.Element {
   useEffect(() => {
     boardSizeRef.current = boardSize;
   }, [boardSize]);
-
-  useEffect(() => {
-    isActivityPausedRef.current = isActivityPaused;
-    if (!isActivityPaused) {
-      setPendingActivityCount(0);
-    }
-  }, [isActivityPaused]);
 
   useEffect(() => {
     isUnmountedRef.current = false;
@@ -440,11 +419,7 @@ function CanvasPage(): JSX.Element {
 
     setPixels((previous) => applyPixelUpdate(previous, boardSizeRef.current, update));
     setPlacedCount((previous) => previous + 1);
-    if (isActivityPausedRef.current) {
-      setPendingActivityCount((previous) => Math.min(99, previous + 1));
-    } else {
-      setRecentActivity((previous) => pushActivity(previous, update));
-    }
+    setRecentActivity((previous) => pushActivity(previous, update));
     cacheMeta(metaCacheRef.current, {
       x: update.x,
       y: update.y,
@@ -590,17 +565,34 @@ function CanvasPage(): JSX.Element {
       return;
     }
 
+    context.clearRect(0, 0, boardSize, boardSize);
+
+    if (!state || pixels.length !== boardSize * boardSize) {
+      return;
+    }
+
     const imageData = context.createImageData(boardSize, boardSize);
+
     pixels.forEach((color, index) => {
-      const { red, green, blue } = unpackRgb(color);
       const offsetIndex = index * 4;
+
+      if (!Number.isFinite(color) || color === 0) {
+        imageData.data[offsetIndex] = 0;
+        imageData.data[offsetIndex + 1] = 0;
+        imageData.data[offsetIndex + 2] = 0;
+        imageData.data[offsetIndex + 3] = 0;
+        return;
+      }
+
+      const { red, green, blue } = unpackRgb(color);
       imageData.data[offsetIndex] = red;
       imageData.data[offsetIndex + 1] = green;
       imageData.data[offsetIndex + 2] = blue;
       imageData.data[offsetIndex + 3] = 255;
     });
+
     context.putImageData(imageData, 0, 0);
-  }, [boardSize, pixels]);
+  }, [boardSize, pixels, state]);
 
   useEffect(() => {
     const target = isTouchMode ? selectedPixel : hoveredPixel;
@@ -889,19 +881,6 @@ function CanvasPage(): JSX.Element {
     setOffset((previous) => clampOffset(previous, normalizedScale, stageSizeRef.current));
   };
 
-  const handleZoomIn = () => applyQuickZoom(scale * 1.15);
-  const handleZoomOut = () => applyQuickZoom(scale / 1.15);
-  const handleZoomToHundred = () => {
-    setScale(1);
-    if (stageSizeRef.current <= 0) {
-      return;
-    }
-    setOffset((previous) => clampOffset(previous, 1, stageSizeRef.current));
-  };
-  const handleZoomFit = () => {
-    setScale(1);
-    setOffset({ x: 0, y: 0 });
-  };
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     dragRef.current = {
@@ -999,7 +978,7 @@ function CanvasPage(): JSX.Element {
 
   const hoveredBounds = computeBounds(hoveredPixel);
   const selectedBounds = computeBounds(selectedPixel);
-  const shouldShowGrid = isGridEnabled && scale >= 4;
+  const shouldShowGrid = false;
   const hoverOutlineWidth = Math.max(1, Math.min(2, 1.6 / Math.sqrt(scale)));
   const selectedOutlineWidth = Math.max(1.5, Math.min(2.8, 2.4 / Math.sqrt(scale)));
   const activeMeta = isTouchMode ? selectedMeta : hoveredMeta;
@@ -1081,65 +1060,47 @@ function CanvasPage(): JSX.Element {
   );
 
   const canvasInfoBar = (
-    <div className="canvas-status-bar canvas-info-bar">
-      <span><strong>{CANVAS_COPY.status.selected}</strong> {selectedPixel ? `(${selectedPixel.x}, ${selectedPixel.y})` : CANVAS_COPY.status.notSelected}</span>
-      <span><strong>{CANVAS_COPY.status.zoom}</strong> {Math.round(scale * 100)}%</span>
-      <span><strong>{CANVAS_COPY.status.cooldown}</strong> {placeStatusLabel}</span>
-      <span><strong>{CANVAS_COPY.status.hover}</strong> {hoveredPixel ? `(${hoveredPixel.x}, ${hoveredPixel.y})` : CANVAS_COPY.status.notSelected}</span>
-      <span><strong>Grid</strong> {isGridEnabled ? CANVAS_COPY.actions.gridOn : CANVAS_COPY.actions.gridOff}</span>
-      <span><strong>{CANVAS_COPY.status.connection}</strong> {connectionLabel}</span>
-      <span><strong>{CANVAS_COPY.status.placedPixels}</strong> {placedCount}</span>
+    <div className="canvas-status-bar canvas-info-bar" role="status" aria-live="polite">
+      <div className="canvas-status-group canvas-status-group--primary">
+        <span className="canvas-status-chip is-primary">
+          <strong>{CANVAS_COPY.status.selected}</strong>
+          <em>{selectedPixel ? `(${selectedPixel.x}, ${selectedPixel.y})` : CANVAS_COPY.status.notSelected}</em>
+        </span>
+        <span className="canvas-status-chip">
+          <strong>{CANVAS_COPY.status.hover}</strong>
+          <em>{hoveredPixel ? `(${hoveredPixel.x}, ${hoveredPixel.y})` : CANVAS_COPY.status.notSelected}</em>
+        </span>
+      </div>
+
+
+      <div className="canvas-status-group">
+        <span className="canvas-status-chip">
+          <strong>{CANVAS_COPY.status.connection}</strong>
+          <em>{connectionLabel}</em>
+        </span>
+        <span className="canvas-status-chip">
+          <strong>{CANVAS_COPY.status.cooldown}</strong>
+          <em>{placeStatusLabel}</em>
+        </span>
+      </div>
+
+      <div className="canvas-status-group canvas-status-group--meta">
+        <span className="canvas-status-chip">
+          <strong>{CANVAS_COPY.status.placedPixels}</strong>
+          <em>{placedCount}</em>
+        </span>
+      </div>
     </div>
   );
 
-  const toolRail = (
-    <section className="canvas-tool-panel" aria-label="Canvas controls">
-      <strong className="canvas-tool-panel-title">캔버스 조작</strong>
-      <div className="canvas-tool-rail" role="group" aria-label="Canvas controls">
-        <button type="button" className="canvas-icon-button" onClick={handleZoomIn} aria-label="Zoom in" title="Zoom in">
-          +
-        </button>
-        <button type="button" className="canvas-icon-button" onClick={handleZoomOut} aria-label="Zoom out" title="Zoom out">
-          -
-        </button>
-        <button
-          type="button"
-          className="canvas-icon-button canvas-icon-button--text"
-          onClick={handleZoomToHundred}
-          aria-label="Zoom 100%"
-          title="Zoom 100%"
-        >
-          100%
-        </button>
-        <button
-          type="button"
-          className="canvas-icon-button canvas-icon-button--text"
-          onClick={handleZoomFit}
-          aria-label="Fit board"
-          title="Fit board"
-        >
-          Fit
-        </button>
-        <button
-          type="button"
-          className={`canvas-icon-button canvas-icon-button--text ${isGridEnabled ? "is-active" : ""}`}
-          onClick={() => setIsGridEnabled((previous) => !previous)}
-          aria-label={isGridEnabled ? "Hide grid" : "Show grid"}
-          title={isGridEnabled ? "Hide grid" : "Show grid"}
-        >
-          Grid
-        </button>
-      </div>
-    </section>
-  );
 
   return (
     <section className="canvas-page">
       <main className="canvas-main canvas-page-shell page-shell">
         {!isMobileLayout ? (
-          <div className="canvas-main-layout canvas-layout">
-            <aside className="canvas-left-column canvas-left">
-              <section className="canvas-left-upper shared-board-panel">
+          <div className="canvas-main-layout canvas-layout canvas-layout--desktop">
+            <aside className="canvas-left-column canvas-left canvas-workspace-column">
+              <section className="canvas-left-upper shared-board-panel canvas-workspace-panel">
                 <CanvasSidebar
                   season={state?.season ?? null}
                   boardSize={boardSize}
@@ -1154,26 +1115,28 @@ function CanvasPage(): JSX.Element {
                 />
               </section>
 
-              <section className="canvas-left-lower canvas-history-region">
-                <CanvasHistoryPanel
-                  recentActivity={recentActivity}
-                  isActivityPaused={isActivityPaused}
-                  pendingActivityCount={pendingActivityCount}
-                  onOpenHistory={() => setIsHistoryOpen(true)}
-                  onToggleActivityPause={handleToggleActivityPause}
-                  onClearActivity={handleClearActivity}
-                />
+              <section className="canvas-left-lower canvas-history-region canvas-workspace-panel">
+                <CanvasHistoryPanel recentActivity={recentActivity} onOpenHistory={() => setIsHistoryOpen(true)} />
               </section>
             </aside>
 
-            <section className="canvas-center-column canvas-center canvas-center-column--desktop">
-              <div className="canvas-center-stage canvas-board-stage-shell">{boardStage}</div>
-              {canvasInfoBar}
+            <section className="canvas-center-column canvas-center canvas-center-column--desktop canvas-workspace-column">
+              <section className="canvas-center-upper canvas-board-region canvas-workspace-panel">
+                <div className="canvas-stage-stack">
+                  <div className="canvas-board-stage-area">
+                    <div className="canvas-board-stage-inner">{boardStage}</div>
+                  </div>
+                </div>
+              </section>
+
+              <section className="canvas-center-lower canvas-status-region canvas-workspace-panel">
+                {canvasInfoBar}
+              </section>
             </section>
 
-            <aside className="canvas-right-column canvas-right">
-              <div className="canvas-right-top canvas-tool-slot">{toolRail}</div>
-              <section className="canvas-right-bottom paint-action-area">
+            <aside className="canvas-right-column canvas-right canvas-right-column--desktop canvas-workspace-column">
+
+              <section className="canvas-right-lower paint-action-area canvas-paint-dock-shell canvas-workspace-panel">
                 <CanvasPaintPanel
                   selectedColor={selectedColor}
                   customColorDraft={customColorDraft}
