@@ -19,7 +19,7 @@ interface CanvasHistoryOverlayProps {
 function CanvasHistoryOverlay(props: CanvasHistoryOverlayProps): JSX.Element {
   return (
     <>
-      {props.isOpen && (
+      {props.isOpen && !props.selectedHistoryCode && (
         <>
           <div className="canvas-overlay-backdrop" onClick={props.onCloseDrawer} aria-hidden="true" />
           <aside className="canvas-history-drawer">

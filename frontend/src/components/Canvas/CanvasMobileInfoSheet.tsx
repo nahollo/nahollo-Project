@@ -8,8 +8,9 @@ interface CanvasMobileInfoSheetProps {
   readonly statusMessage: string;
   readonly connectionLabel: string;
   readonly cooldownLabel: string;
-  readonly selectedLabel: string;
   readonly selectedColorLabel: string;
+  readonly selectedUserLabel: string;
+  readonly cooldownRuleText: string;
   readonly nickname: string;
   readonly onNicknameChange: (value: string) => void;
   readonly recentActivity: readonly string[];
@@ -49,8 +50,8 @@ function CanvasMobileInfoSheet(props: CanvasMobileInfoSheetProps): JSX.Element |
               <strong>{props.cooldownLabel}</strong>
             </article>
             <article className="canvas-stat-card">
-              <span>{CANVAS_COPY.status.selectedPixel}</span>
-              <strong>{props.selectedLabel}</strong>
+              <span>{CANVAS_COPY.status.selectedUser}</span>
+              <strong>{props.selectedUserLabel}</strong>
             </article>
             <article className="canvas-stat-card">
               <span>{CANVAS_COPY.status.selectedColor}</span>
@@ -69,7 +70,7 @@ function CanvasMobileInfoSheet(props: CanvasMobileInfoSheetProps): JSX.Element |
             />
           </label>
 
-          <p className="canvas-rule-copy">{CANVAS_COPY.sidebar.rule}</p>
+          <p className="canvas-rule-copy">{props.cooldownRuleText}</p>
 
           <div className="canvas-activity-block">
             <span className="canvas-activity-label">{CANVAS_COPY.sidebar.recentActivity}</span>

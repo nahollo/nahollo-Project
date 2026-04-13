@@ -5254,6 +5254,21 @@ html[data-theme="dark"] .resume-focus-list li {
   box-shadow: 0 12px 22px -22px rgba(2, 6, 23, 0.28);
 }
 
+.site-header .navbar-shell {
+  width: min(1680px, 94vw) !important;
+  max-width: min(1680px, 94vw) !important;
+  margin-inline: auto;
+  padding-inline: clamp(14px, 1.8vw, 28px) !important;
+}
+
+@media (max-width: 991px) {
+  .site-header .navbar-shell {
+    width: min(100%, 94vw) !important;
+    max-width: min(100%, 94vw) !important;
+    padding-inline: 0 !important;
+  }
+}
+
 .brand-link:hover .brand-surface,
 .brand-link:focus-visible .brand-surface {
   transform: none;

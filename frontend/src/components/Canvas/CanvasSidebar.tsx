@@ -2,7 +2,6 @@ import React from "react";
 import { CanvasSeasonSummary } from "../../lib/api";
 import { formatSeasonCode } from "../../data/canvas";
 import { CANVAS_COPY } from "./canvasCopy";
-import { ActivityItem } from "./canvasUtils";
 
 interface CanvasSidebarProps {
   readonly season: CanvasSeasonSummary | null;
@@ -10,15 +9,11 @@ interface CanvasSidebarProps {
   readonly statusMessage: string;
   readonly connectionLabel: string;
   readonly cooldownLabel: string;
-  readonly selectedLabel: string;
   readonly selectedColorLabel: string;
+  readonly selectedUserLabel: string;
+  readonly cooldownRuleText: string;
   readonly nickname: string;
   readonly onNicknameChange: (value: string) => void;
-  readonly recentActivity: readonly ActivityItem[];
-  readonly isActivityPaused: boolean;
-  readonly pendingActivityCount: number;
-  readonly onToggleActivityPause: () => void;
-  readonly onClearActivity: () => void;
 }
 
 function CanvasSidebar({
@@ -27,89 +22,60 @@ function CanvasSidebar({
   statusMessage,
   connectionLabel,
   cooldownLabel,
-  selectedLabel,
   selectedColorLabel,
+  selectedUserLabel,
+  cooldownRuleText,
   nickname,
-  onNicknameChange,
-  recentActivity,
-  isActivityPaused,
-  pendingActivityCount,
-  onToggleActivityPause,
-  onClearActivity
+  onNicknameChange
 }: CanvasSidebarProps): JSX.Element {
-  const pausedHint =
-    pendingActivityCount > 0
-      ? CANVAS_COPY.sidebar.pausedWithCount.replace("{count}", String(pendingActivityCount))
-      : CANVAS_COPY.sidebar.pausedNoPending;
-
   return (
-    <aside className="canvas-sidebar">
+    <section className="canvas-sidebar shared-board-panel">
       <div className="canvas-sidebar-card">
-        <span className="canvas-chip">{CANVAS_COPY.chips.board}</span>
-        <h1>{formatSeasonCode(season?.seasonCode ?? "2026-04")}</h1>
-        <strong>{boardSize} × {boardSize}</strong>
-        <p className="canvas-sidebar-copy">{statusMessage}</p>
+        <section className="canvas-sidebar-section canvas-sidebar-section-meta">
+          <span className="canvas-chip">{CANVAS_COPY.chips.board}</span>
+          <h1>{formatSeasonCode(season?.seasonCode ?? "2026-04")}</h1>
+          <strong>{boardSize} x {boardSize}</strong>
+          <p className="canvas-sidebar-copy">{statusMessage}</p>
+        </section>
 
-        <div className="canvas-stat-grid">
-          <article className="canvas-stat-card">
-            <span>{CANVAS_COPY.status.connection}</span>
-            <strong>{connectionLabel}</strong>
-          </article>
-          <article className="canvas-stat-card">
-            <span>{CANVAS_COPY.status.cooldown}</span>
-            <strong>{cooldownLabel}</strong>
-          </article>
-          <article className="canvas-stat-card is-coordinate">
-            <span>{CANVAS_COPY.status.selectedPixel}</span>
-            <strong>{selectedLabel}</strong>
-          </article>
-          <article className="canvas-stat-card is-color">
-            <span>{CANVAS_COPY.status.selectedColor}</span>
-            <strong>{selectedColorLabel}</strong>
-          </article>
-        </div>
-
-        <label className="canvas-input-group">
-          <span>{CANVAS_COPY.sidebar.nickname}</span>
-          <input
-            type="text"
-            maxLength={32}
-            placeholder={CANVAS_COPY.sidebar.nicknamePlaceholder}
-            value={nickname}
-            onChange={(event) => onNicknameChange(event.target.value)}
-            spellCheck={false}
-          />
-        </label>
-
-        <p className="canvas-rule-copy">{CANVAS_COPY.sidebar.rule}</p>
-
-        <div className="canvas-activity-block">
-          <div className="canvas-activity-header">
-            <span className="canvas-activity-label">{CANVAS_COPY.sidebar.recentActivity}</span>
-            <div className="canvas-activity-controls">
-              <button
-                type="button"
-                className={`canvas-activity-control ${isActivityPaused ? "is-active" : ""}`}
-                onClick={onToggleActivityPause}
-              >
-                {isActivityPaused ? CANVAS_COPY.actions.resumeActivity : CANVAS_COPY.actions.pauseActivity}
-              </button>
-              <button type="button" className="canvas-activity-control" onClick={onClearActivity}>
-                {CANVAS_COPY.actions.clearActivity}
-              </button>
-            </div>
+        <section className="canvas-sidebar-section canvas-sidebar-section-stats">
+          <div className="canvas-stat-grid">
+            <article className="canvas-stat-card">
+              <span>{CANVAS_COPY.status.connection}</span>
+              <strong>{connectionLabel}</strong>
+            </article>
+            <article className="canvas-stat-card">
+              <span>{CANVAS_COPY.status.cooldown}</span>
+              <strong>{cooldownLabel}</strong>
+            </article>
+            <article className="canvas-stat-card">
+              <span>{CANVAS_COPY.status.selectedUser}</span>
+              <strong>{selectedUserLabel}</strong>
+            </article>
+            <article className="canvas-stat-card is-color">
+              <span>{CANVAS_COPY.status.selectedColor}</span>
+              <strong>{selectedColorLabel}</strong>
+            </article>
           </div>
+        </section>
 
-          {isActivityPaused && <p className="canvas-activity-hint">{pausedHint}</p>}
+        <section className="canvas-sidebar-section canvas-sidebar-section-profile">
+          <label className="canvas-input-group">
+            <span>{CANVAS_COPY.sidebar.nickname}</span>
+            <input
+              type="text"
+              maxLength={32}
+              placeholder={CANVAS_COPY.sidebar.nicknamePlaceholder}
+              value={nickname}
+              onChange={(event) => onNicknameChange(event.target.value)}
+              spellCheck={false}
+            />
+          </label>
 
-          <ul>
-            {recentActivity.length > 0
-              ? recentActivity.map((item) => <li key={item.id}>{item.text}</li>)
-              : <li>{CANVAS_COPY.sidebar.emptyActivity}</li>}
-          </ul>
-        </div>
+          <p className="canvas-rule-copy">{cooldownRuleText}</p>
+        </section>
       </div>
-    </aside>
+    </section>
   );
 }
 

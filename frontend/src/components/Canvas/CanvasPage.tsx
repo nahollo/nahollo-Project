@@ -26,6 +26,7 @@ import {
   unpackRgb,
   formatSeasonCode
 } from "../../data/canvas";
+import CanvasHistoryPanel from "./CanvasHistoryPanel";
 import CanvasHistoryOverlay from "./CanvasHistoryOverlay";
 import CanvasMobileColorSheet from "./CanvasMobileColorSheet";
 import CanvasMobileInfoSheet from "./CanvasMobileInfoSheet";
@@ -56,7 +57,7 @@ import {
   writeRecentColors
 } from "./canvasUtils";
 
-const COOLDOWN_SECONDS = 300;
+const DEFAULT_COOLDOWN_SECONDS = 30;
 const MAX_ZOOM = 24;
 const UPDATE_DEDUP_WINDOW_MS = 15000;
 const UPDATE_SYNC_LIVE_INTERVAL_MS = 12000;
@@ -130,6 +131,7 @@ function CanvasPage(): JSX.Element {
   const [customColorDraft, setCustomColorDraft] = useState<RGBColor>(DEFAULT_SELECTED_COLOR);
   const [recentColors, setRecentColors] = useState<RGBColor[]>(() => readRecentColors(hexToRgb));
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  const [cooldownDurationSeconds, setCooldownDurationSeconds] = useState(DEFAULT_COOLDOWN_SECONDS);
   const [nickname, setNickname] = useState("");
   const [selectedPixel, setSelectedPixel] = useState<PixelPoint | null>(null);
   const [hoveredPixel, setHoveredPixel] = useState<PixelPoint | null>(null);
@@ -188,13 +190,23 @@ function CanvasPage(): JSX.Element {
   const isConnectionUnavailable = connectionState === "OFFLINE" || connectionState === "DEGRADED";
   const placeState: PlaceActionState = isConnectionUnavailable ? "offline" : isPlacing ? "loading" : cooldownSeconds > 0 ? "cooldown" : "ready";
   const isPlaceDisabled = placeState !== "ready";
-  const placementProgress = `${Math.max(0, Math.min(100, ((COOLDOWN_SECONDS - cooldownSeconds) / COOLDOWN_SECONDS) * 100))}%`;
+  const cooldownWindowSeconds = Math.max(1, cooldownDurationSeconds);
+  const placementProgress = `${Math.max(0, Math.min(100, ((cooldownWindowSeconds - cooldownSeconds) / cooldownWindowSeconds) * 100))}%`;
   const connectionLabel = getConnectionStatusLabel(connectionState);
   const actionCooldownLabel = formatCountdown(Math.max(0, cooldownSeconds));
   const cooldownLabel = placeState === "ready" ? CANVAS_COPY.status.ready : actionCooldownLabel;
+  const cooldownRuleText = `?쎌? 諛곗튂 ??${formatCountdown(cooldownWindowSeconds)} ?숈븞 ?ㅼ쓬 諛곗튂瑜?湲곕떎?ㅼ빞 ?⑸땲??`;
   const selectedLabel = selectedPixel ? `(${selectedPixel.x}, ${selectedPixel.y})` : CANVAS_COPY.status.notSelected;
   const selectedColorLabel = selectedMeta ? rgbToHex(unpackRgb(selectedMeta.color)) : selectedColorHex;
-  const selectedUserLabel = displayNickname(selectedMeta?.nickname);
+  const selectedUserLabel = selectedMeta ? displayNickname(selectedMeta.nickname) : CANVAS_COPY.status.notSelected;
+  const placeStatusLabel =
+    placeState === "ready"
+      ? CANVAS_COPY.status.ready
+      : placeState === "offline"
+        ? CANVAS_COPY.actions.connectionLost
+        : placeState === "loading"
+          ? CANVAS_COPY.actions.placing
+          : actionCooldownLabel;
   const seasonLabel = formatSeasonCode(state?.season.seasonCode ?? "2026-04");
 
   const handlePresetColorPick = useCallback((color: RGBColor) => {
@@ -393,6 +405,9 @@ function CanvasPage(): JSX.Element {
       }
 
       if (cooldownResult.status === "fulfilled") {
+        if (cooldownResult.value.remainingSeconds > 0) {
+          setCooldownDurationSeconds(cooldownResult.value.remainingSeconds);
+        }
         setCooldownSeconds(cooldownResult.value.remainingSeconds);
       }
 
@@ -785,6 +800,9 @@ function CanvasPage(): JSX.Element {
       if (result.update) {
         applyIncomingUpdate(result.update);
       }
+      if (result.remainingSeconds > 0) {
+        setCooldownDurationSeconds(result.remainingSeconds);
+      }
       setCooldownSeconds(result.remainingSeconds);
       setToast({ tone: "success", text: CANVAS_COPY.toast.placeSuccess });
     } catch (error) {
@@ -806,8 +824,11 @@ function CanvasPage(): JSX.Element {
         const remaining =
           typeof error.data === "object" && error.data && "remainingSeconds" in error.data
             ? Number((error.data as { remainingSeconds: number }).remainingSeconds)
-            : COOLDOWN_SECONDS;
+            : DEFAULT_COOLDOWN_SECONDS;
 
+        if (remaining > 0) {
+          setCooldownDurationSeconds(remaining);
+        }
         setCooldownSeconds(remaining);
       }
 
@@ -870,7 +891,14 @@ function CanvasPage(): JSX.Element {
 
   const handleZoomIn = () => applyQuickZoom(scale * 1.15);
   const handleZoomOut = () => applyQuickZoom(scale / 1.15);
-  const handleZoomReset = () => {
+  const handleZoomToHundred = () => {
+    setScale(1);
+    if (stageSizeRef.current <= 0) {
+      return;
+    }
+    setOffset((previous) => clampOffset(previous, 1, stageSizeRef.current));
+  };
+  const handleZoomFit = () => {
     setScale(1);
     setOffset({ x: 0, y: 0 });
   };
@@ -1012,190 +1040,223 @@ function CanvasPage(): JSX.Element {
     return { left, top };
   })();
 
+  const boardStage = (
+    <div className="canvas-board-frame">
+      <div
+        ref={stageRef}
+        className="canvas-board-stage"
+        onWheel={handleStageWheel}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={finishPointer}
+        onPointerLeave={() => !isTouchMode && setHoveredPixel(null)}
+      >
+        <canvas
+          ref={canvasRef}
+          className="canvas-board"
+          width={boardSize}
+          height={boardSize}
+          style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})` }}
+        />
+        {shouldShowGrid && (
+          <div
+            className="canvas-grid-overlay"
+            style={
+              {
+                ["--canvas-grid-cell-size" as any]: `${canvasMetrics?.cellSize ?? 0}px`,
+                ["--canvas-grid-offset-x" as any]: `${canvasMetrics?.originX ?? 0}px`,
+                ["--canvas-grid-offset-y" as any]: `${canvasMetrics?.originY ?? 0}px`
+              } as React.CSSProperties
+            }
+          />
+        )}
+        {hoveredBounds && !isTouchMode && (
+          <span className="canvas-hover-outline" style={{ ...hoveredBounds, borderWidth: hoverOutlineWidth }} aria-hidden="true" />
+        )}
+        {selectedBounds && (
+          <span className="canvas-selected-outline" style={{ ...selectedBounds, borderWidth: selectedOutlineWidth }} aria-hidden="true" />
+        )}
+      </div>
+    </div>
+  );
+
+  const canvasInfoBar = (
+    <div className="canvas-status-bar canvas-info-bar">
+      <span><strong>{CANVAS_COPY.status.selected}</strong> {selectedPixel ? `(${selectedPixel.x}, ${selectedPixel.y})` : CANVAS_COPY.status.notSelected}</span>
+      <span><strong>{CANVAS_COPY.status.zoom}</strong> {Math.round(scale * 100)}%</span>
+      <span><strong>{CANVAS_COPY.status.cooldown}</strong> {placeStatusLabel}</span>
+      <span><strong>{CANVAS_COPY.status.hover}</strong> {hoveredPixel ? `(${hoveredPixel.x}, ${hoveredPixel.y})` : CANVAS_COPY.status.notSelected}</span>
+      <span><strong>Grid</strong> {isGridEnabled ? CANVAS_COPY.actions.gridOn : CANVAS_COPY.actions.gridOff}</span>
+      <span><strong>{CANVAS_COPY.status.connection}</strong> {connectionLabel}</span>
+      <span><strong>{CANVAS_COPY.status.placedPixels}</strong> {placedCount}</span>
+    </div>
+  );
+
+  const toolRail = (
+    <section className="canvas-tool-panel" aria-label="Canvas controls">
+      <strong className="canvas-tool-panel-title">캔버스 조작</strong>
+      <div className="canvas-tool-rail" role="group" aria-label="Canvas controls">
+        <button type="button" className="canvas-icon-button" onClick={handleZoomIn} aria-label="Zoom in" title="Zoom in">
+          +
+        </button>
+        <button type="button" className="canvas-icon-button" onClick={handleZoomOut} aria-label="Zoom out" title="Zoom out">
+          -
+        </button>
+        <button
+          type="button"
+          className="canvas-icon-button canvas-icon-button--text"
+          onClick={handleZoomToHundred}
+          aria-label="Zoom 100%"
+          title="Zoom 100%"
+        >
+          100%
+        </button>
+        <button
+          type="button"
+          className="canvas-icon-button canvas-icon-button--text"
+          onClick={handleZoomFit}
+          aria-label="Fit board"
+          title="Fit board"
+        >
+          Fit
+        </button>
+        <button
+          type="button"
+          className={`canvas-icon-button canvas-icon-button--text ${isGridEnabled ? "is-active" : ""}`}
+          onClick={() => setIsGridEnabled((previous) => !previous)}
+          aria-label={isGridEnabled ? "Hide grid" : "Show grid"}
+          title={isGridEnabled ? "Hide grid" : "Show grid"}
+        >
+          Grid
+        </button>
+      </div>
+    </section>
+  );
+
   return (
     <section className="canvas-page">
-      <div className="canvas-stage-layer">
-        <div className="canvas-stage-shell">
-          <div className="canvas-center-column">
-            <div className="canvas-board-frame">
-              <div
-                ref={stageRef}
-                className="canvas-board-stage"
-                onWheel={handleStageWheel}
-                onPointerDown={handlePointerDown}
-                onPointerMove={handlePointerMove}
-                onPointerUp={finishPointer}
-                onPointerLeave={() => !isTouchMode && setHoveredPixel(null)}
-              >
-                <canvas
-                  ref={canvasRef}
-                  className="canvas-board"
-                  width={boardSize}
-                  height={boardSize}
-                  style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})` }}
+      <main className="canvas-main canvas-page-shell page-shell">
+        {!isMobileLayout ? (
+          <div className="canvas-main-layout canvas-layout">
+            <aside className="canvas-left-column canvas-left">
+              <section className="canvas-left-upper shared-board-panel">
+                <CanvasSidebar
+                  season={state?.season ?? null}
+                  boardSize={boardSize}
+                  statusMessage={statusMessage}
+                  connectionLabel={connectionLabel}
+                  cooldownLabel={cooldownLabel}
+                  selectedColorLabel={selectedColorLabel}
+                  selectedUserLabel={selectedUserLabel}
+                  cooldownRuleText={cooldownRuleText}
+                  nickname={nickname}
+                  onNicknameChange={setNickname}
                 />
-                {shouldShowGrid && (
-                  <div
-                    className="canvas-grid-overlay"
-                    style={
-                      {
-                        ["--canvas-grid-cell-size" as any]: `${canvasMetrics?.cellSize ?? 0}px`,
-                        ["--canvas-grid-offset-x" as any]: `${canvasMetrics?.originX ?? 0}px`,
-                        ["--canvas-grid-offset-y" as any]: `${canvasMetrics?.originY ?? 0}px`
-                      } as React.CSSProperties
-                    }
-                  />
-                )}
-                {hoveredBounds && !isTouchMode && (
-                  <span className="canvas-hover-outline" style={{ ...hoveredBounds, borderWidth: hoverOutlineWidth }} aria-hidden="true" />
-                )}
-                {selectedBounds && (
-                  <span className="canvas-selected-outline" style={{ ...selectedBounds, borderWidth: selectedOutlineWidth }} aria-hidden="true" />
-                )}
+              </section>
+
+              <section className="canvas-left-lower canvas-history-region">
+                <CanvasHistoryPanel
+                  recentActivity={recentActivity}
+                  isActivityPaused={isActivityPaused}
+                  pendingActivityCount={pendingActivityCount}
+                  onOpenHistory={() => setIsHistoryOpen(true)}
+                  onToggleActivityPause={handleToggleActivityPause}
+                  onClearActivity={handleClearActivity}
+                />
+              </section>
+            </aside>
+
+            <section className="canvas-center-column canvas-center canvas-center-column--desktop">
+              <div className="canvas-center-stage canvas-board-stage-shell">{boardStage}</div>
+              {canvasInfoBar}
+            </section>
+
+            <aside className="canvas-right-column canvas-right">
+              <div className="canvas-right-top canvas-tool-slot">{toolRail}</div>
+              <section className="canvas-right-bottom paint-action-area">
+                <CanvasPaintPanel
+                  selectedColor={selectedColor}
+                  customColorDraft={customColorDraft}
+                  recentColors={recentColors}
+                  isExpanded={isPaintExpanded}
+                  isDocked={true}
+                  cooldownLabel={actionCooldownLabel}
+                  placementProgress={placementProgress}
+                  isCustomColorOpen={isCustomColorOpen}
+                  placeState={placeState}
+                  isPlaceDisabled={isPlaceDisabled}
+                  hasPlaceError={hasPlaceError}
+                  onToggleExpanded={() => setIsPaintExpanded((previous) => !previous)}
+                  onPlace={handlePlace}
+                  onPresetClick={handlePresetColorPick}
+                  onToggleCustom={handleToggleCustomPicker}
+                  onCloseCustom={() => setIsCustomColorOpen(false)}
+                  onCustomHexChange={handleCustomHexChange}
+                  onCustomPickerChange={(value) => {
+                    const next = hexToRgb(value);
+                    setCustomColorDraft(next);
+                    setSelectedColor(next);
+                  }}
+                  onCustomChannelChange={(channel, value) =>
+                    setCustomColorDraft((previous) => {
+                      const next = { ...previous, [channel]: clampChannel(value) };
+                      setSelectedColor(next);
+                      return next;
+                    })
+                  }
+                  isEyedropperAvailable={isEyedropperAvailable}
+                  onPickEyedropper={handlePickEyedropper}
+                  onApplyCustom={() => {
+                    setSelectedColor(customColorDraft);
+                    setRecentColors((previous) => mergeRecentColor(previous, customColorDraft, rgbToHex));
+                    setIsCustomColorOpen(false);
+                  }}
+                  onPickRecent={(color) => {
+                    setCustomColorDraft(color);
+                    setSelectedColor(color);
+                  }}
+                />
+              </section>
+            </aside>
+          </div>
+        ) : (
+          <>
+            <div className="canvas-stage-layer">
+              <div className="canvas-stage-shell">
+                <div className="canvas-center-column">{boardStage}</div>
               </div>
             </div>
 
-            <div className="canvas-status-bar">
-              <span>
-                <strong>{CANVAS_COPY.status.hover}</strong> {hoveredPixel ? `(${hoveredPixel.x}, ${hoveredPixel.y})` : CANVAS_COPY.status.notSelected}
-              </span>
-              <span>
-                <strong>{CANVAS_COPY.status.selected}</strong> {selectedPixel ? `(${selectedPixel.x}, ${selectedPixel.y})` : CANVAS_COPY.status.notSelected}
-              </span>
-              <span><strong>{CANVAS_COPY.status.selectedUser}</strong> {selectedUserLabel}</span>
-              <span><strong>{CANVAS_COPY.status.zoom}</strong> {Math.round(scale * 100)}%</span>
-              <span><strong>{CANVAS_COPY.status.placedPixels}</strong> {placedCount}</span>
-            </div>
-          </div>
-        </div>
-      </div>
+            <div className="canvas-overlay-root">
+              <div className="canvas-overlay-slot canvas-mobile-slot-top">
+                <CanvasMobileTopBar
+                  seasonLabel={seasonLabel}
+                  connectionLabel={connectionLabel}
+                  cooldownLabel={cooldownLabel}
+                  onOpenInfo={() => setIsMobileInfoOpen(true)}
+                  onOpenHistory={() => setIsHistoryOpen(true)}
+                />
+              </div>
 
-      <div className="canvas-overlay-root">
-        {!isMobileLayout && (
-          <>
-            <div className="canvas-controls-cluster" role="group" aria-label="캔버스 조작">
-              <button type="button" className="canvas-icon-button" onClick={handleZoomIn} aria-label={CANVAS_COPY.actions.zoomIn}>
-                +
-              </button>
-              <button type="button" className="canvas-icon-button" onClick={handleZoomOut} aria-label={CANVAS_COPY.actions.zoomOut}>
-                −
-              </button>
-              <button type="button" className="canvas-icon-button" onClick={handleZoomReset} aria-label={CANVAS_COPY.actions.zoomReset}>
-                1:1
-              </button>
-              <button
-                type="button"
-                className={`canvas-icon-button ${isGridEnabled ? "is-active" : ""}`}
-                onClick={() => setIsGridEnabled((previous) => !previous)}
-                aria-label={isGridEnabled ? CANVAS_COPY.actions.gridOff : CANVAS_COPY.actions.gridOn}
-                title={isGridEnabled ? CANVAS_COPY.actions.gridOff : CANVAS_COPY.actions.gridOn}
-              >
-                #
-              </button>
-            </div>
-
-            <div className="canvas-overlay-slot canvas-overlay-slot-left">
-              <CanvasSidebar
-                season={state?.season ?? null}
-                boardSize={boardSize}
-                statusMessage={statusMessage}
-                connectionLabel={connectionLabel}
-                cooldownLabel={cooldownLabel}
-                selectedLabel={selectedLabel}
-                selectedColorLabel={selectedColorLabel}
-                nickname={nickname}
-                onNicknameChange={setNickname}
-                recentActivity={recentActivity}
-                isActivityPaused={isActivityPaused}
-                pendingActivityCount={pendingActivityCount}
-                onToggleActivityPause={handleToggleActivityPause}
-                onClearActivity={handleClearActivity}
-              />
-            </div>
-
-            <button type="button" className="canvas-history-pill" onClick={() => setIsHistoryOpen(true)}>
-              <span className="canvas-chip">{CANVAS_COPY.chips.history}</span>
-              <span className="canvas-history-copy">
-                <strong>{CANVAS_COPY.actions.openGallery}</strong>
-              </span>
-            </button>
-
-            <div className="canvas-overlay-slot canvas-overlay-slot-right">
-              <CanvasPaintPanel
-                selectedColor={selectedColor}
-                customColorDraft={customColorDraft}
-                recentColors={recentColors}
-                isExpanded={isPaintExpanded}
-                cooldownLabel={actionCooldownLabel}
-                placementProgress={placementProgress}
-                isCustomColorOpen={isCustomColorOpen}
-                placeState={placeState}
-                isPlaceDisabled={isPlaceDisabled}
-                hasPlaceError={hasPlaceError}
-                onToggleExpanded={() => setIsPaintExpanded((previous) => !previous)}
-                onPlace={handlePlace}
-                onPresetClick={handlePresetColorPick}
-                onToggleCustom={handleToggleCustomPicker}
-                onCloseCustom={() => setIsCustomColorOpen(false)}
-                onCustomHexChange={handleCustomHexChange}
-                onCustomPickerChange={(value) => {
-                  const next = hexToRgb(value);
-                  setCustomColorDraft(next);
-                  setSelectedColor(next);
-                }}
-                onCustomChannelChange={(channel, value) =>
-                  setCustomColorDraft((previous) => {
-                    const next = { ...previous, [channel]: clampChannel(value) };
-                    setSelectedColor(next);
-                    return next;
-                  })
-                }
-                isEyedropperAvailable={isEyedropperAvailable}
-                onPickEyedropper={handlePickEyedropper}
-                onApplyCustom={() => {
-                  setSelectedColor(customColorDraft);
-                  setRecentColors((previous) => mergeRecentColor(previous, customColorDraft, rgbToHex));
-                  setIsCustomColorOpen(false);
-                }}
-                onPickRecent={(color) => {
-                  setCustomColorDraft(color);
-                  setSelectedColor(color);
-                }}
-              />
+              <div className="canvas-overlay-slot canvas-mobile-slot-bottom">
+                <CanvasMobilePaintTray
+                  selectedColor={selectedColor}
+                  isExpanded={isPaintExpanded}
+                  cooldownLabel={actionCooldownLabel}
+                  placementProgress={placementProgress}
+                  placeState={placeState}
+                  isPlaceDisabled={isPlaceDisabled}
+                  hasPlaceError={hasPlaceError}
+                  onToggleExpanded={() => setIsPaintExpanded((previous) => !previous)}
+                  onPlace={handlePlace}
+                  onPresetClick={handlePresetColorPick}
+                  onToggleCustom={handleToggleCustomPicker}
+                />
+              </div>
             </div>
           </>
         )}
-
-        {isMobileLayout && (
-          <>
-            <div className="canvas-overlay-slot canvas-mobile-slot-top">
-              <CanvasMobileTopBar
-                seasonLabel={seasonLabel}
-                connectionLabel={connectionLabel}
-                cooldownLabel={cooldownLabel}
-                onOpenInfo={() => setIsMobileInfoOpen(true)}
-                onOpenHistory={() => setIsHistoryOpen(true)}
-              />
-            </div>
-
-            <div className="canvas-overlay-slot canvas-mobile-slot-bottom">
-              <CanvasMobilePaintTray
-                selectedColor={selectedColor}
-                isExpanded={isPaintExpanded}
-                cooldownLabel={actionCooldownLabel}
-                placementProgress={placementProgress}
-                placeState={placeState}
-                isPlaceDisabled={isPlaceDisabled}
-                hasPlaceError={hasPlaceError}
-                onToggleExpanded={() => setIsPaintExpanded((previous) => !previous)}
-                onPlace={handlePlace}
-                onPresetClick={handlePresetColorPick}
-                onToggleCustom={handleToggleCustomPicker}
-              />
-            </div>
-          </>
-        )}
-      </div>
+      </main>
 
       <div className="canvas-floating-root">
         {!isMobileLayout && tooltipPoint && tooltipStyle && (
@@ -1226,8 +1287,9 @@ function CanvasPage(): JSX.Element {
           statusMessage={statusMessage}
           connectionLabel={connectionLabel}
           cooldownLabel={cooldownLabel}
-          selectedLabel={selectedLabel}
           selectedColorLabel={selectedColorLabel}
+          selectedUserLabel={selectedUserLabel}
+          cooldownRuleText={cooldownRuleText}
           nickname={nickname}
           onNicknameChange={setNickname}
           recentActivity={recentActivity.map((item) => item.text)}
