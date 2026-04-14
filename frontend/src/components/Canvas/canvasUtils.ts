@@ -1,4 +1,4 @@
-import { CanvasPixelMetaResponse, CanvasPixelUpdate } from "../../lib/api";
+﻿import { CanvasPixelMetaResponse, CanvasPixelUpdate } from "../../lib/api";
 import { CANVAS_SIZE, DEFAULT_CANVAS_COLOR, RGBColor } from "../../data/canvas";
 import { CANVAS_COPY, displayNickname } from "./canvasCopy";
 
@@ -14,6 +14,10 @@ export interface OffsetPoint {
 
 export interface ActivityItem {
   readonly id: string;
+  readonly nickname: string;
+  readonly x: number;
+  readonly y: number;
+  readonly paintedAt: string | null;
   readonly text: string;
 }
 
@@ -68,7 +72,7 @@ export function formatRelativeTime(value: string | null): string {
 
   const seconds = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 1000));
   if (seconds < 60) {
-    return `${seconds}초 전`;
+    return "방금 전";
   }
   if (seconds < 3600) {
     return `${Math.floor(seconds / 60)}분 전`;
@@ -104,11 +108,16 @@ export function pushActivity(previous: readonly ActivityItem[], update: CanvasPi
     Number.isFinite(update.eventId) && update.eventId > 0
       ? `event-${update.eventId}`
       : `${update.seasonCode}-${update.x}-${update.y}-${update.paintedAt}`;
+  const nickname = displayNickname(update.painter);
 
   return [
     {
       id,
-      text: `${displayNickname(update.painter)} 님이 (${update.x}, ${update.y})에 픽셀을 배치했어요.`
+      nickname,
+      x: update.x,
+      y: update.y,
+      paintedAt: update.paintedAt ?? null,
+      text: `${nickname} placed a pixel at (${update.x}, ${update.y})`
     },
     ...previous
   ].slice(0, 8);

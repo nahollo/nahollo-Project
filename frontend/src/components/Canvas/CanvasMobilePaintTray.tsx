@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { FIXED_CANVAS_PALETTE, RGBColor, rgbToHex } from "../../data/canvas";
 import { CANVAS_COPY } from "./canvasCopy";
 import { PlaceActionState } from "./CanvasPaintPanel";
@@ -20,6 +20,9 @@ interface CanvasMobilePaintTrayProps {
 function resolveActionLabel(placeState: PlaceActionState, cooldownLabel: string): string {
   if (placeState === "loading") {
     return CANVAS_COPY.actions.placing;
+  }
+  if (placeState === "no-selection") {
+    return "위치를 선택하세요";
   }
   if (placeState === "cooldown") {
     return cooldownLabel;

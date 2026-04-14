@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ApiError,
   CanvasHistoryDetailResponse,
@@ -35,6 +35,7 @@ import CanvasMobilePixelSheet from "./CanvasMobilePixelSheet";
 import CanvasMobileTopBar from "./CanvasMobileTopBar";
 import CanvasPaintPanel, { PlaceActionState } from "./CanvasPaintPanel";
 import CanvasSidebar from "./CanvasSidebar";
+import CanvasViewportInspector from "./CanvasViewportInspector";
 import { CANVAS_COPY, displayNickname } from "./canvasCopy";
 import "./canvas.css";
 import {
@@ -174,26 +175,44 @@ function CanvasPage(): JSX.Element {
     selectedColor.blue >= 0 &&
     selectedColor.blue <= 255;
   const isConnectionUnavailable = connectionState === "OFFLINE" || connectionState === "DEGRADED";
-  const placeState: PlaceActionState = isConnectionUnavailable ? "offline" : isPlacing ? "loading" : cooldownSeconds > 0 ? "cooldown" : "ready";
+  const hasSelection = selectedPixel !== null;
+  const placeState: PlaceActionState = !hasSelection
+    ? "no-selection"
+    : isConnectionUnavailable
+      ? "offline"
+      : isPlacing
+        ? "loading"
+        : cooldownSeconds > 0
+          ? "cooldown"
+          : "ready";
   const isPlaceDisabled = placeState !== "ready";
   const cooldownWindowSeconds = Math.max(1, cooldownDurationSeconds);
   const placementProgress = `${Math.max(0, Math.min(100, ((cooldownWindowSeconds - cooldownSeconds) / cooldownWindowSeconds) * 100))}%`;
   const connectionLabel = getConnectionStatusLabel(connectionState);
   const actionCooldownLabel = formatCountdown(Math.max(0, cooldownSeconds));
   const cooldownLabel = placeState === "ready" ? CANVAS_COPY.status.ready : actionCooldownLabel;
-  const cooldownRuleText = `?쎌? 諛곗튂 ??${formatCountdown(cooldownWindowSeconds)} ?숈븞 ?ㅼ쓬 諛곗튂瑜?湲곕떎?ㅼ빞 ?⑸땲??`;
-  const selectedLabel = selectedPixel ? `(${selectedPixel.x}, ${selectedPixel.y})` : CANVAS_COPY.status.notSelected;
+  const cooldownRuleText = `픽셀 배치 후 ${formatCountdown(cooldownWindowSeconds)} 동안 다음 배치를 기다려야 합니다.`;
+  const selectedLabel = selectedPixel ? `(${selectedPixel.x}, ${selectedPixel.y})` : "좌표를 선택하세요";
   const selectedColorLabel = selectedMeta ? rgbToHex(unpackRgb(selectedMeta.color)) : selectedColorHex;
   const selectedUserLabel = selectedMeta ? displayNickname(selectedMeta.nickname) : CANVAS_COPY.status.notSelected;
-  const placeStatusLabel =
+  const placementHelperText =
     placeState === "ready"
-      ? CANVAS_COPY.status.ready
-      : placeState === "offline"
-        ? CANVAS_COPY.actions.connectionLost
+      ? CANVAS_COPY.paint.readyHint
+      : placeState === "cooldown"
+        ? CANVAS_COPY.paint.cooldownHint
         : placeState === "loading"
-          ? CANVAS_COPY.actions.placing
-          : actionCooldownLabel;
+          ? CANVAS_COPY.paint.loadingHint
+          : placeState === "offline"
+            ? CANVAS_COPY.paint.offlineHint
+            : CANVAS_COPY.paint.noSelectionHint;
   const seasonLabel = formatSeasonCode(state?.season.seasonCode ?? "2026-04");
+  const axisMarks = useMemo(() => {
+    const marks: number[] = [];
+    for (let value = 0; value < boardSize; value += 50) {
+      marks.push(value);
+    }
+    return marks;
+  }, [boardSize]);
 
   const handlePresetColorPick = useCallback((color: RGBColor) => {
     setSelectedColor(color);
@@ -239,6 +258,58 @@ function CanvasPage(): JSX.Element {
       // EyeDropper can throw when canceled. Ignore quietly.
     }
   }, []);
+
+  const handleCopySelectedCoordinates = useCallback(async () => {
+    if (!selectedPixel || typeof navigator === "undefined" || !navigator.clipboard) {
+      setToast({ tone: "error", text: "蹂듭궗??醫뚰몴媛 ?놁뼱??" });
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(`(${selectedPixel.x}, ${selectedPixel.y})`);
+      setToast({ tone: "success", text: "醫뚰몴瑜?蹂듭궗?덉뼱??" });
+    } catch (error) {
+      setToast({ tone: "error", text: "醫뚰몴 蹂듭궗???ㅽ뙣?덉뼱??" });
+    }
+  }, [selectedPixel]);
+
+  const handleActivitySelect = useCallback((item: ActivityItem) => {
+    const point = { x: item.x, y: item.y };
+    setSelectedPixel(point);
+    const cached = metaCacheRef.current.get(`${point.x}:${point.y}`);
+    if (cached) {
+      setSelectedMeta(cached);
+    }
+  }, []);
+
+  const zoomToScale = useCallback(
+    (nextScale: number, anchor?: { x: number; y: number }) => {
+      const size = stageSizeRef.current;
+      if (size <= 0) {
+        return;
+      }
+
+      const clampedScale = Math.max(1, Math.min(MAX_ZOOM, nextScale));
+      const anchorPoint = anchor ?? { x: size / 2, y: size / 2 };
+      const originX = size / 2 + offset.x - (size * scale) / 2;
+      const originY = size / 2 + offset.y - (size * scale) / 2;
+      const canvasX = (anchorPoint.x - originX) / scale;
+      const canvasY = (anchorPoint.y - originY) / scale;
+
+      setScale(clampedScale);
+      setOffset(
+        clampOffset(
+          {
+            x: anchorPoint.x - size / 2 + (size * clampedScale) / 2 - canvasX * clampedScale,
+            y: anchorPoint.y - size / 2 + (size * clampedScale) / 2 - canvasY * clampedScale
+          },
+          clampedScale,
+          size
+        )
+      );
+    },
+    [offset.x, offset.y, scale]
+  );
 
   useEffect(() => {
     scaleRef.current = scale;
@@ -796,6 +867,7 @@ function CanvasPage(): JSX.Element {
         setCooldownDurationSeconds(result.remainingSeconds);
       }
       setCooldownSeconds(result.remainingSeconds);
+      setRecentColors((previous) => mergeRecentColor(previous, selectedColor, rgbToHex));
       setToast({ tone: "success", text: CANVAS_COPY.toast.placeSuccess });
     } catch (error) {
       if (shouldApplyOptimistic && previousColor !== null) {
@@ -871,15 +943,17 @@ function CanvasPage(): JSX.Element {
     setOffset(nextOffset);
   };
 
-  const applyQuickZoom = (nextScale: number) => {
-    if (stageSizeRef.current <= 0) {
-      return;
-    }
+  const handleZoomOut = useCallback(() => {
+    zoomToScale(scale * 0.86);
+  }, [scale, zoomToScale]);
 
-    const normalizedScale = Math.max(1, Math.min(MAX_ZOOM, nextScale));
-    setScale(normalizedScale);
-    setOffset((previous) => clampOffset(previous, normalizedScale, stageSizeRef.current));
-  };
+  const handleZoomIn = useCallback(() => {
+    zoomToScale(scale * 1.14);
+  }, [scale, zoomToScale]);
+
+  const handleFitZoom = useCallback(() => {
+    zoomToScale(1, stageSizeRef.current > 0 ? { x: stageSizeRef.current / 2, y: stageSizeRef.current / 2 } : undefined);
+  }, [zoomToScale]);
 
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -1020,77 +1094,109 @@ function CanvasPage(): JSX.Element {
   })();
 
   const boardStage = (
-    <div className="canvas-board-frame">
-      <div
-        ref={stageRef}
-        className="canvas-board-stage"
-        onWheel={handleStageWheel}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={finishPointer}
-        onPointerLeave={() => !isTouchMode && setHoveredPixel(null)}
-      >
-        <canvas
-          ref={canvasRef}
-          className="canvas-board"
-          width={boardSize}
-          height={boardSize}
-          style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})` }}
-        />
-        {shouldShowGrid && (
-          <div
-            className="canvas-grid-overlay"
-            style={
-              {
-                ["--canvas-grid-cell-size" as any]: `${canvasMetrics?.cellSize ?? 0}px`,
-                ["--canvas-grid-offset-x" as any]: `${canvasMetrics?.originX ?? 0}px`,
-                ["--canvas-grid-offset-y" as any]: `${canvasMetrics?.originY ?? 0}px`
-              } as React.CSSProperties
-            }
+    <div className="canvas-board-shell">
+      <div className="canvas-axis-corner">x</div>
+      <div className="canvas-axis-strip canvas-axis-strip--top" aria-hidden="true">
+        {axisMarks.map((value) => (
+          <span
+            key={`axis-top-${value}`}
+            className="canvas-axis-label canvas-axis-label--top"
+            style={{ left: `${(value / Math.max(1, boardSize - 1)) * 100}%` }}
+          >
+            {value}
+          </span>
+        ))}
+      </div>
+
+      <div className="canvas-axis-strip canvas-axis-strip--left" aria-hidden="true">
+        {axisMarks.map((value) => (
+          <span
+            key={`axis-left-${value}`}
+            className="canvas-axis-label canvas-axis-label--left"
+            style={{ top: `${(value / Math.max(1, boardSize - 1)) * 100}%` }}
+          >
+            {value}
+          </span>
+        ))}
+      </div>
+
+      <div className="canvas-board-frame">
+        <div
+          ref={stageRef}
+          className="canvas-board-stage"
+          onWheel={handleStageWheel}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={finishPointer}
+          onPointerLeave={() => !isTouchMode && setHoveredPixel(null)}
+        >
+          <canvas
+            ref={canvasRef}
+            className="canvas-board"
+            width={boardSize}
+            height={boardSize}
+            style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})` }}
           />
-        )}
-        {hoveredBounds && !isTouchMode && (
-          <span className="canvas-hover-outline" style={{ ...hoveredBounds, borderWidth: hoverOutlineWidth }} aria-hidden="true" />
-        )}
-        {selectedBounds && (
-          <span className="canvas-selected-outline" style={{ ...selectedBounds, borderWidth: selectedOutlineWidth }} aria-hidden="true" />
-        )}
+          {shouldShowGrid && (
+            <div
+              className="canvas-grid-overlay"
+              style={
+                {
+                  ["--canvas-grid-cell-size" as any]: `${canvasMetrics?.cellSize ?? 0}px`,
+                  ["--canvas-grid-offset-x" as any]: `${canvasMetrics?.originX ?? 0}px`,
+                  ["--canvas-grid-offset-y" as any]: `${canvasMetrics?.originY ?? 0}px`
+                } as React.CSSProperties
+              }
+            />
+          )}
+          {hoveredBounds && !isTouchMode && (
+            <span
+              className="canvas-hover-outline"
+              style={{
+                ...hoveredBounds,
+                borderWidth: hoverOutlineWidth,
+                borderColor: "rgba(255,255,255,0.98)",
+                background: "rgba(122, 131, 255, 0.08)",
+                boxShadow: "0 0 0 1px rgba(15, 23, 42, 0.28), 0 0 0 4px rgba(122, 131, 255, 0.14)"
+              }}
+              aria-hidden="true"
+            />
+          )}
+          {selectedBounds && (
+            <span
+              className="canvas-selected-outline"
+              style={{
+                ...selectedBounds,
+                borderWidth: selectedOutlineWidth,
+                borderColor: "var(--canvas-accent-strong)",
+                background: "rgba(91, 99, 246, 0.1)",
+                boxShadow:
+                  "0 0 0 1px rgba(255, 255, 255, 0.98), 0 0 0 5px rgba(91, 99, 246, 0.28), 0 0 18px rgba(91, 99, 246, 0.22)"
+              }}
+              aria-hidden="true"
+            />
+          )}
+        </div>
       </div>
     </div>
   );
 
   const canvasInfoBar = (
-    <div className="canvas-status-bar canvas-info-bar" role="status" aria-live="polite">
-      <div className="canvas-status-group canvas-status-group--primary">
-        <span className="canvas-status-chip is-primary">
-          <strong>{CANVAS_COPY.status.selected}</strong>
-          <em>{selectedPixel ? `(${selectedPixel.x}, ${selectedPixel.y})` : CANVAS_COPY.status.notSelected}</em>
-        </span>
-        <span className="canvas-status-chip">
-          <strong>{CANVAS_COPY.status.hover}</strong>
-          <em>{hoveredPixel ? `(${hoveredPixel.x}, ${hoveredPixel.y})` : CANVAS_COPY.status.notSelected}</em>
-        </span>
-      </div>
-
-
-      <div className="canvas-status-group">
-        <span className="canvas-status-chip">
-          <strong>{CANVAS_COPY.status.connection}</strong>
-          <em>{connectionLabel}</em>
-        </span>
-        <span className="canvas-status-chip">
-          <strong>{CANVAS_COPY.status.cooldown}</strong>
-          <em>{placeStatusLabel}</em>
-        </span>
-      </div>
-
-      <div className="canvas-status-group canvas-status-group--meta">
-        <span className="canvas-status-chip">
-          <strong>{CANVAS_COPY.status.placedPixels}</strong>
-          <em>{placedCount}</em>
-        </span>
-      </div>
-    </div>
+    <CanvasViewportInspector
+      boardSize={boardSize}
+      pixels={pixels}
+      scale={scale}
+      offset={offset}
+      stageSize={stageSize}
+      selectedPixel={selectedPixel}
+      hoveredPixel={hoveredPixel}
+      selectedLabel={selectedLabel}
+      connectionLabel={connectionLabel}
+      placedCount={placedCount}
+      onZoomOut={handleZoomOut}
+      onZoomIn={handleZoomIn}
+      onFit={handleFitZoom}
+    />
   );
 
 
@@ -1116,7 +1222,11 @@ function CanvasPage(): JSX.Element {
               </section>
 
               <section className="canvas-left-lower canvas-history-region canvas-workspace-panel">
-                <CanvasHistoryPanel recentActivity={recentActivity} onOpenHistory={() => setIsHistoryOpen(true)} />
+                <CanvasHistoryPanel
+                  recentActivity={recentActivity}
+                  onOpenHistory={() => setIsHistoryOpen(true)}
+                  onActivitySelect={handleActivitySelect}
+                />
               </section>
             </aside>
 
@@ -1141,7 +1251,7 @@ function CanvasPage(): JSX.Element {
                   selectedColor={selectedColor}
                   customColorDraft={customColorDraft}
                   recentColors={recentColors}
-                  isExpanded={isPaintExpanded}
+                  isExpanded={!isMobileLayout || isPaintExpanded}
                   isDocked={true}
                   cooldownLabel={actionCooldownLabel}
                   placementProgress={placementProgress}
@@ -1149,8 +1259,12 @@ function CanvasPage(): JSX.Element {
                   placeState={placeState}
                   isPlaceDisabled={isPlaceDisabled}
                   hasPlaceError={hasPlaceError}
+                  selectedPixelLabel={selectedLabel}
+                  canCopyCoordinates={hasSelection}
+                  helperText={placementHelperText}
                   onToggleExpanded={() => setIsPaintExpanded((previous) => !previous)}
                   onPlace={handlePlace}
+                  onCopyCoordinates={handleCopySelectedCoordinates}
                   onPresetClick={handlePresetColorPick}
                   onToggleCustom={handleToggleCustomPicker}
                   onCloseCustom={() => setIsCustomColorOpen(false)}
@@ -1308,3 +1422,4 @@ function CanvasPage(): JSX.Element {
 }
 
 export default CanvasPage;
+
