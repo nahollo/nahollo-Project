@@ -18,48 +18,19 @@ interface CanvasSidebarProps {
 
 function CanvasSidebar({
   season,
-  boardSize,
-  statusMessage,
-  connectionLabel,
-  cooldownLabel,
-  selectedColorLabel,
-  selectedUserLabel,
-  cooldownRuleText,
   nickname,
   onNicknameChange
 }: CanvasSidebarProps): JSX.Element {
   return (
     <section className="canvas-sidebar shared-board-panel">
-      <div className="canvas-sidebar-card">
-        <section className="canvas-sidebar-section canvas-sidebar-section-meta">
+      <div className="canvas-sidebar-card canvas-sidebar-card--minimal">
+        <section className="canvas-sidebar-section canvas-sidebar-section-meta canvas-sidebar-section-meta--minimal">
           <span className="canvas-chip">{CANVAS_COPY.chips.board}</span>
           <h1>{formatSeasonCode(season?.seasonCode ?? "2026-04")}</h1>
-          <strong>{boardSize} x {boardSize}</strong>
-          <p className="canvas-sidebar-copy">{statusMessage}</p>
+          <p className="canvas-sidebar-copy">{CANVAS_COPY.status.liveDescription}</p>
         </section>
 
-        <section className="canvas-sidebar-section canvas-sidebar-section-stats">
-          <div className="canvas-stat-grid">
-            <article className="canvas-stat-card">
-              <span>{CANVAS_COPY.status.connection}</span>
-              <strong>{connectionLabel}</strong>
-            </article>
-            <article className="canvas-stat-card">
-              <span>{CANVAS_COPY.status.cooldown}</span>
-              <strong>{cooldownLabel}</strong>
-            </article>
-            <article className="canvas-stat-card">
-              <span>{CANVAS_COPY.status.selectedUser}</span>
-              <strong>{selectedUserLabel}</strong>
-            </article>
-            <article className="canvas-stat-card is-color">
-              <span>{CANVAS_COPY.status.selectedColor}</span>
-              <strong>{selectedColorLabel}</strong>
-            </article>
-          </div>
-        </section>
-
-        <section className="canvas-sidebar-section canvas-sidebar-section-profile">
+        <section className="canvas-sidebar-section canvas-sidebar-section-profile canvas-sidebar-section-profile--minimal">
           <label className="canvas-input-group">
             <span>{CANVAS_COPY.sidebar.nickname}</span>
             <input
@@ -69,10 +40,9 @@ function CanvasSidebar({
               value={nickname}
               onChange={(event) => onNicknameChange(event.target.value)}
               spellCheck={false}
+              autoComplete="off"
             />
           </label>
-
-          <p className="canvas-rule-copy">{cooldownRuleText}</p>
         </section>
       </div>
     </section>
