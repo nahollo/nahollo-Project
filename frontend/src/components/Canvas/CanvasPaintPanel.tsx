@@ -318,7 +318,7 @@ function CanvasPaintPanel(props: CanvasPaintPanelProps): JSX.Element {
             </div>
           )}
 
-          {props.isCustomColorOpen && renderCustomEditor(customHex, hexInput, pickerTab, setPickerTab, setHexInput, props)}
+          {/* 데스크톱 docked 모드: 커스텀 에디터는 플로팅 모달로 렌더링되므로 여기서는 생략 */}
         </section>
 
         <section className="canvas-placement-card">

@@ -16,6 +16,7 @@ import {
   resolveWebSocketUrl
 } from "../../lib/api";
 import {
+  BASIC_PICKER_PALETTE,
   CANVAS_SIZE,
   clampChannel,
   DEFAULT_SELECTED_COLOR,
@@ -147,6 +148,9 @@ function CanvasPage(): JSX.Element {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [isCustomColorOpen, setIsCustomColorOpen] = useState(false);
+  // 플로팅 컬러 피커 모달 전용 로컬 상태
+  const [pickerHexInput, setPickerHexInput] = useState(() => rgbToHex(DEFAULT_SELECTED_COLOR));
+  const [pickerTab, setPickerTab] = useState<"custom" | "palette">("custom");
   const [isPaintExpanded, setIsPaintExpanded] = useState(false);
   const [isMobileInfoOpen, setIsMobileInfoOpen] = useState(false);
   const [isMobilePixelInfoOpen, setIsMobilePixelInfoOpen] = useState(false);
@@ -770,6 +774,18 @@ function CanvasPage(): JSX.Element {
     return () => window.clearTimeout(timeout);
   }, [toast]);
 
+  // pickerHexInput → customColorDraft와 동기화
+  useEffect(() => {
+    setPickerHexInput(rgbToHex(customColorDraft));
+  }, [customColorDraft, isCustomColorOpen]);
+
+  // 피커 열릴 때 탭 초기화
+  useEffect(() => {
+    if (isCustomColorOpen) {
+      setPickerTab("custom");
+    }
+  }, [isCustomColorOpen]);
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") {
@@ -1096,28 +1112,44 @@ function CanvasPage(): JSX.Element {
   const boardStage = (
     <div className="canvas-board-shell">
       <div className="canvas-axis-corner">x</div>
+
+      {/* 눈금자 — canvasMetrics 기반으로 줌/패닝에 동기화 */}
       <div className="canvas-axis-strip canvas-axis-strip--top" aria-hidden="true">
-        {axisMarks.map((value) => (
-          <span
-            key={`axis-top-${value}`}
-            className="canvas-axis-label canvas-axis-label--top"
-            style={{ left: `${(value / Math.max(1, boardSize - 1)) * 100}%` }}
-          >
-            {value}
-          </span>
-        ))}
+        {axisMarks.map((value) => {
+          // board-frame에 padding이 없으므로 stageSize = frame width
+          const left = canvasMetrics
+            ? canvasMetrics.originX + value * canvasMetrics.cellSize
+            : (value / boardSize) * stageSize;
+          // 화면 밖이면 렌더링 생략
+          if (canvasMetrics && (left < -24 || left > stageSize + 24)) return null;
+          return (
+            <span
+              key={`axis-top-${value}`}
+              className="canvas-axis-label canvas-axis-label--top"
+              style={{ left: `${left}px` }}
+            >
+              {value}
+            </span>
+          );
+        })}
       </div>
 
       <div className="canvas-axis-strip canvas-axis-strip--left" aria-hidden="true">
-        {axisMarks.map((value) => (
-          <span
-            key={`axis-left-${value}`}
-            className="canvas-axis-label canvas-axis-label--left"
-            style={{ top: `${(value / Math.max(1, boardSize - 1)) * 100}%` }}
-          >
-            {value}
-          </span>
-        ))}
+        {axisMarks.map((value) => {
+          const top = canvasMetrics
+            ? canvasMetrics.originY + value * canvasMetrics.cellSize
+            : (value / boardSize) * stageSize;
+          if (canvasMetrics && (top < -24 || top > stageSize + 24)) return null;
+          return (
+            <span
+              key={`axis-left-${value}`}
+              className="canvas-axis-label canvas-axis-label--left"
+              style={{ top: `${top}px` }}
+            >
+              {value}
+            </span>
+          );
+        })}
       </div>
 
       <div className="canvas-board-frame">
@@ -1135,7 +1167,10 @@ function CanvasPage(): JSX.Element {
             className="canvas-board"
             width={boardSize}
             height={boardSize}
-            style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})` }}
+            style={{
+              /* 픽셀 정렬: 정수 px로 반올림하여 sub-pixel blur 방지 */
+              transform: `translate(${Math.round(offset.x)}px, ${Math.round(offset.y)}px) scale(${scale})`
+            }}
           />
           {shouldShowGrid && (
             <div
@@ -1209,13 +1244,6 @@ function CanvasPage(): JSX.Element {
               <section className="canvas-left-upper shared-board-panel canvas-workspace-panel">
                 <CanvasSidebar
                   season={state?.season ?? null}
-                  boardSize={boardSize}
-                  statusMessage={statusMessage}
-                  connectionLabel={connectionLabel}
-                  cooldownLabel={cooldownLabel}
-                  selectedColorLabel={selectedColorLabel}
-                  selectedUserLabel={selectedUserLabel}
-                  cooldownRuleText={cooldownRuleText}
                   nickname={nickname}
                   onNicknameChange={setNickname}
                 />
@@ -1336,6 +1364,165 @@ function CanvasPage(): JSX.Element {
       </main>
 
       <div className="canvas-floating-root">
+        {/* ── 플로팅 컬러 피커 모달 (데스크톱 전용) ────────── */}
+        {!isMobileLayout && isCustomColorOpen && (() => {
+          const customHex = rgbToHex(customColorDraft);
+          return (
+            <>
+              {/* 백드롭 클릭 → 닫기 */}
+              <div
+                className="canvas-color-picker-backdrop"
+                onClick={() => setIsCustomColorOpen(false)}
+              />
+              <div className="canvas-color-picker-modal">
+                <div className="canvas-inline-custom-header">
+                  <strong>{CANVAS_COPY.paint.pickerGui}</strong>
+                  <button
+                    type="button"
+                    className="canvas-close-button"
+                    onClick={() => setIsCustomColorOpen(false)}
+                    aria-label={CANVAS_COPY.actions.closeColorPicker}
+                  >×</button>
+                </div>
+
+                <div className="canvas-popover-tabs">
+                  <button
+                    type="button"
+                    className={pickerTab === "custom" ? "is-active" : ""}
+                    onClick={() => setPickerTab("custom")}
+                  >{CANVAS_COPY.paint.pickerTabCustom}</button>
+                  <button
+                    type="button"
+                    className={pickerTab === "palette" ? "is-active" : ""}
+                    onClick={() => setPickerTab("palette")}
+                  >{CANVAS_COPY.paint.pickerTabPalette}</button>
+                </div>
+
+                <div className={`canvas-picker-tab-content is-${pickerTab}`}>
+                  {pickerTab === "custom" ? (
+                    <div className="canvas-picker-tab-panel">
+                      <div className="canvas-hex-row">
+                        <label className="canvas-color-button" title={CANVAS_COPY.paint.pickerGui} style={{ backgroundColor: customHex }}>
+                          <input
+                            type="color"
+                            value={customHex}
+                            onChange={(e) => {
+                              const next = hexToRgb(e.target.value);
+                              setCustomColorDraft(next);
+                              setSelectedColor(next);
+                            }}
+                          />
+                        </label>
+
+                        <label className="canvas-text-field canvas-hex-field">
+                          <span>{CANVAS_COPY.paint.hex}</span>
+                          <input
+                            type="text"
+                            value={pickerHexInput}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setPickerHexInput(v);
+                              handleCustomHexChange(v);
+                            }}
+                            onBlur={() => setPickerHexInput(customHex)}
+                          />
+                        </label>
+
+                        <button
+                          type="button"
+                          className="canvas-eyedropper-button"
+                          onClick={handlePickEyedropper}
+                          disabled={!isEyedropperAvailable}
+                          aria-label={CANVAS_COPY.paint.pickScreenColor}
+                          title={isEyedropperAvailable ? CANVAS_COPY.paint.pickScreenColor : CANVAS_COPY.paint.eyedropperUnsupported}
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M13.6 3.3a1.5 1.5 0 0 1 2.1 0l5 5a1.5 1.5 0 0 1 0 2.1l-1.9 1.9-2.8-2.8-1.8 1.8 2.8 2.8-5.1 5.1a2.5 2.5 0 0 1-1.1.6l-4.3 1.1a1 1 0 0 1-1.2-1.2l1.1-4.3a2.5 2.5 0 0 1 .6-1.1l5.1-5.1 2.8 2.8 1.8-1.8-2.8-2.8 1.9-1.9Z" fill="currentColor" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      <div className="canvas-rgb-fields">
+                        {(["red", "green", "blue"] as const).map((channel) => (
+                          <label key={channel} className="canvas-rgb-field">
+                            <span>{channel === "red" ? CANVAS_COPY.paint.channelRed : channel === "green" ? CANVAS_COPY.paint.channelGreen : CANVAS_COPY.paint.channelBlue}</span>
+                            <input
+                              type="range"
+                              min={0}
+                              max={255}
+                              value={customColorDraft[channel]}
+                              onChange={(e) => {
+                                const next = { ...customColorDraft, [channel]: clampChannel(Number(e.target.value)) };
+                                setCustomColorDraft(next);
+                                setSelectedColor(next);
+                              }}
+                            />
+                            <input
+                              type="number"
+                              min={0}
+                              max={255}
+                              value={customColorDraft[channel]}
+                              onChange={(e) => {
+                                const next = { ...customColorDraft, [channel]: clampChannel(Number(e.target.value)) };
+                                setCustomColorDraft(next);
+                                setSelectedColor(next);
+                              }}
+                            />
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="canvas-palette-library">
+                      {BASIC_PICKER_PALETTE.map((group) => (
+                        <section key={group.label} className="canvas-palette-group">
+                          <strong className="canvas-palette-group-title">{group.label}</strong>
+                          <div className="canvas-palette-bank">
+                            {group.colors.map((color) => {
+                              const hex = rgbToHex(color);
+                              return (
+                                <button
+                                  key={hex}
+                                  type="button"
+                                  className={`canvas-picker-swatch ${hex === customHex ? "is-active" : ""}`}
+                                  style={{ backgroundColor: hex }}
+                                  onClick={() => {
+                                    const next = hexToRgb(hex);
+                                    setCustomColorDraft(next);
+                                    setSelectedColor(next);
+                                  }}
+                                  aria-label={`palette color ${hex}`}
+                                />
+                              );
+                            })}
+                          </div>
+                        </section>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="canvas-popover-actions">
+                  <button type="button" className="canvas-secondary-button" onClick={() => setIsCustomColorOpen(false)}>
+                    {CANVAS_COPY.actions.cancel}
+                  </button>
+                  <button
+                    type="button"
+                    className="canvas-primary-button"
+                    onClick={() => {
+                      setSelectedColor(customColorDraft);
+                      setRecentColors((prev) => mergeRecentColor(prev, customColorDraft, rgbToHex));
+                      setIsCustomColorOpen(false);
+                    }}
+                  >
+                    {CANVAS_COPY.actions.apply}
+                  </button>
+                </div>
+              </div>
+            </>
+          );
+        })()}
+
         {!isMobileLayout && tooltipPoint && tooltipStyle && (
           <div className="canvas-tooltip" style={tooltipStyle}>
             <strong>({tooltipPoint.x}, {tooltipPoint.y})</strong>

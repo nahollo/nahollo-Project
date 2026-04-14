@@ -5,20 +5,12 @@ import { CANVAS_COPY } from "./canvasCopy";
 
 interface CanvasSidebarProps {
   readonly season: CanvasSeasonSummary | null;
-  readonly boardSize: number;
-  readonly statusMessage: string;
-  readonly connectionLabel: string;
-  readonly cooldownLabel: string;
-  readonly selectedColorLabel: string;
-  readonly selectedUserLabel: string;
-  readonly cooldownRuleText: string;
   readonly nickname: string;
   readonly onNicknameChange: (value: string) => void;
 }
 
 function CanvasSidebar({
   season,
-  boardSize,
   nickname,
   onNicknameChange
 }: CanvasSidebarProps): JSX.Element {
@@ -26,7 +18,6 @@ function CanvasSidebar({
   const [isEditingNickname, setIsEditingNickname] = useState(false);
 
   const boardTitle = formatSeasonCode(season?.seasonCode ?? "2026-04");
-  const boardSizeLabel = `${boardSize} × ${boardSize}`;
   const nicknameLabel = nickname.trim() || "nahollo";
 
   useEffect(() => {
@@ -60,7 +51,6 @@ function CanvasSidebar({
         <section className="canvas-sidebar-section canvas-sidebar-section-meta canvas-sidebar-section-meta--reference">
           <span className="canvas-chip">{CANVAS_COPY.chips.board}</span>
           <h1>{boardTitle}</h1>
-          <strong className="canvas-sidebar-board-size">{boardSizeLabel}</strong>
           <p className="canvas-sidebar-copy">{CANVAS_COPY.status.liveDescription}</p>
         </section>
 

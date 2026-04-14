@@ -100,18 +100,32 @@ function CanvasViewportInspector(props: CanvasViewportInspectorProps): JSX.Eleme
       context.putImageData(imageData, 0, 0);
     }
 
+    // ── 미니맵 뷰포트 계산 수정 ──────────────────────────────
+    // cellSize: 1 캔버스 픽셀이 stage 위에서 몇 CSS px인지
+    // (이전 코드의 버그: stageSize ≠ boardSize 일 때 오차 발생)
     const scale = Math.max(0.0001, props.scale);
-    const visibleSize = props.stageSize > 0 ? Math.min(props.boardSize, props.stageSize / scale) : props.boardSize;
+    const cellSize = props.stageSize > 0
+      ? (props.stageSize * scale) / props.boardSize
+      : scale;
+
     const originX = props.stageSize / 2 + props.offset.x - (props.stageSize * scale) / 2;
     const originY = props.stageSize / 2 + props.offset.y - (props.stageSize * scale) / 2;
-    const leftPixels =
-      props.stageSize > 0 ? clamp(-originX / scale, 0, Math.max(0, props.boardSize - visibleSize)) : 0;
-    const topPixels =
-      props.stageSize > 0 ? clamp(-originY / scale, 0, Math.max(0, props.boardSize - visibleSize)) : 0;
-    const viewportPixels = props.stageSize > 0 ? visibleSize : props.boardSize;
+
+    // 현재 화면에 보이는 캔버스 픽셀 범위 (좌상단 기준)
+    const visibleCanvasPixels = props.stageSize > 0
+      ? Math.min(props.boardSize, props.boardSize / scale)
+      : props.boardSize;
+
+    const leftPixels = props.stageSize > 0
+      ? clamp(-originX / cellSize, 0, Math.max(0, props.boardSize - visibleCanvasPixels))
+      : 0;
+    const topPixels = props.stageSize > 0
+      ? clamp(-originY / cellSize, 0, Math.max(0, props.boardSize - visibleCanvasPixels))
+      : 0;
+
     const rectX = (leftPixels / props.boardSize) * size;
     const rectY = (topPixels / props.boardSize) * size;
-    const rectSize = (viewportPixels / props.boardSize) * size;
+    const rectSize = (visibleCanvasPixels / props.boardSize) * size;
 
     context.strokeStyle = "#5b63f6";
     context.fillStyle = "rgba(91, 99, 246, 0.14)";
